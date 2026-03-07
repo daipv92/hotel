@@ -13,7 +13,11 @@ insert into roles (id, hotel_id, name, is_admin) values
   ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Quan ly', true),
   ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Le tan', false);
 
--- 3. Receptionist permissions
+-- 3. Create admin profile
+-- Replace <USER_UUID> with the actual auth.users id from: SELECT id, email FROM auth.users;
+-- Example: insert into profiles (id, hotel_id, role_id, full_name) values ('<USER_UUID>', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'Admin');
+
+-- 4. Receptionist permissions
 insert into role_permissions (role_id, feature) values
   ('b0000000-0000-0000-0000-000000000002', 'dashboard'),
   ('b0000000-0000-0000-0000-000000000002', 'booking_view'),
