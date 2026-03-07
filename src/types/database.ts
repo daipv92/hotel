@@ -107,3 +107,39 @@ export interface BookingService {
   total_price: number;
   added_at: string;
 }
+
+export interface Floor {
+  id: string;
+  hotel_id: string;
+  name: string;
+  floor_number: number;
+  description: string | null;
+  created_at: string;
+}
+
+export type PricingType = "hourly" | "daily";
+
+export interface PricingRule {
+  id: string;
+  hotel_id: string;
+  room_type_id: string;
+  pricing_type: PricingType;
+  price: number;
+  start_hour: number | null;
+  end_hour: number | null;
+  description: string | null;
+  created_at: string;
+  // joined
+  room_type?: RoomType;
+}
+
+export type ServiceCategory = "food" | "drink" | "clean" | "other";
+
+export interface Service {
+  id: string;
+  hotel_id: string;
+  name: string;
+  price: number;
+  category: ServiceCategory;
+  created_at: string;
+}
