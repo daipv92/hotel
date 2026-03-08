@@ -78,6 +78,14 @@ function SparklesIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
+function CalendarIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
 // ─── Status config ───
 const STATUS_CONFIG = {
   available: {
@@ -100,6 +108,16 @@ const STATUS_CONFIG = {
     iconColor: "text-white",
     statBg: "bg-gradient-to-br from-blue-500 to-indigo-600",
   },
+  reserved: {
+    label: "statusReserved",
+    leftBg: "bg-violet-600",
+    cardBg: "bg-white border-violet-200 hover:border-violet-300 hover:shadow-violet-100",
+    dot: "bg-violet-500",
+    badge: "bg-violet-100 text-violet-700",
+    text: "text-violet-700",
+    iconColor: "text-white",
+    statBg: "bg-gradient-to-br from-violet-500 to-purple-600",
+  },
   dirty: {
     label: "statusDirty",
     leftBg: "bg-amber-500",
@@ -112,8 +130,14 @@ const STATUS_CONFIG = {
   },
 };
 
-// ─── Status filter ───
-type StatusFilter = "all" | "available" | "occupied" | "dirty";
+// ─── Status helpers ───
+type EffectiveStatus = "available" | "occupied" | "reserved" | "dirty";
+type StatusFilter = "all" | EffectiveStatus;
+
+function getEffectiveStatus(room: RoomOccupancy): EffectiveStatus {
+  if (room.status === "available" && room.future_booking_id) return "reserved";
+  return room.status;
+}
 
 export default function BookingPage() {
   const { hotelId } = useHotel();
@@ -151,14 +175,15 @@ export default function BookingPage() {
   const filtered =
     statusFilter === "all"
       ? rooms
-      : rooms.filter((r) => r.status === statusFilter);
+      : rooms.filter((r) => getEffectiveStatus(r) === statusFilter);
 
   const grouped = buildGrouped(filtered);
 
   const counts = {
     all: rooms.length,
-    available: rooms.filter((r) => r.status === "available").length,
+    available: rooms.filter((r) => getEffectiveStatus(r) === "available").length,
     occupied: rooms.filter((r) => r.status === "occupied").length,
+    reserved: rooms.filter((r) => getEffectiveStatus(r) === "reserved").length,
     dirty: rooms.filter((r) => r.status === "dirty").length,
   };
 
@@ -205,33 +230,6 @@ export default function BookingPage() {
 
   return (
     <>
-      {/* Summary stats */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {(
-          [
-            { key: "all" as StatusFilter, label: t("statTotal"), icon: <BedIcon className="h-6 w-6" />, bg: "bg-gradient-to-br from-gray-600 to-gray-800" },
-            { key: "available" as StatusFilter, label: t("statAvailable"), icon: <BedIcon className="h-6 w-6" />, bg: STATUS_CONFIG.available.statBg },
-            { key: "occupied" as StatusFilter, label: t("statOccupied"), icon: <UserIcon className="h-6 w-6" />, bg: STATUS_CONFIG.occupied.statBg },
-            { key: "dirty" as StatusFilter, label: t("statDirty"), icon: <SparklesIcon className="h-6 w-6" />, bg: STATUS_CONFIG.dirty.statBg },
-          ]
-        ).map(({ key, label, icon, bg }) => (
-          <button
-            key={key}
-            onClick={() => setStatusFilter(key)}
-            className={`relative overflow-hidden rounded-2xl p-4 text-left text-white shadow-lg transition-all hover:scale-[1.02] hover:shadow-xl active:scale-[0.98] ${bg} ${
-              statusFilter === key ? "ring-2 ring-offset-2 ring-blue-400" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-2xl font-bold">{counts[key]}</p>
-                <p className="mt-0.5 text-xs font-medium text-white/80">{label}</p>
-              </div>
-              <div className="rounded-xl bg-white/20 p-2">{icon}</div>
-            </div>
-          </button>
-        ))}
-      </div>
 
       {/* Legend bar */}
       <div className="mb-4 flex items-center gap-4 rounded-xl bg-white px-4 py-2.5 shadow-sm border border-gray-100">
@@ -239,6 +237,7 @@ export default function BookingPage() {
         {(
           [
             { status: "available" as const, label: t("legendAvailable") },
+            { status: "reserved" as const, label: t("legendReserved") },
             { status: "occupied" as const, label: t("legendOccupied") },
             { status: "dirty" as const, label: t("legendDirty") },
           ]
@@ -281,14 +280,42 @@ export default function BookingPage() {
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {cat.rooms.map((room) => {
-                        const cfg = STATUS_CONFIG[room.status];
+                        const effectiveStatus = getEffectiveStatus(room);
+                        const cfg = STATUS_CONFIG[effectiveStatus];
                         const isSelected = actionMenu?.room.room_id === room.room_id;
+                        const isReserved = effectiveStatus === "reserved";
                         return (
                           <button
                             key={room.room_id}
                             onClick={(e) => handleCardClick(room, e)}
-                            className={`group relative flex overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-md active:scale-[0.99] ${cfg.cardBg} ${isSelected ? "ring-2 ring-blue-400 shadow-md" : ""}`}
+                            className={`group relative flex flex-col overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-md active:scale-[0.99] ${cfg.cardBg} ${isSelected ? "ring-2 ring-blue-400 shadow-md" : ""}`}
                           >
+                            {/* Reservation warning banner on top for reserved rooms */}
+                            {isReserved && (
+                              <div className={`flex items-center gap-1.5 px-3 py-1.5 ${
+                                room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                  ? "bg-red-50 border-b border-red-200"
+                                  : "bg-violet-50 border-b border-violet-200"
+                              }`}>
+                                <CalendarIcon className={`h-3.5 w-3.5 flex-shrink-0 ${
+                                  room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                    ? "text-red-500"
+                                    : "text-violet-500"
+                                }`} />
+                                <p className={`text-[11px] font-semibold truncate ${
+                                  room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                    ? "text-red-700"
+                                    : "text-violet-700"
+                                }`}>
+                                  {room.future_guest}
+                                  {room.future_check_in && (
+                                    <span className="font-normal"> - {formatDateTime(room.future_check_in)}</span>
+                                  )}
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex flex-1">
                             {/* Left panel - colored */}
                             <div className={`flex w-20 flex-shrink-0 flex-col items-center justify-center gap-1 ${cfg.leftBg} py-3`}>
                               <span className="text-[10px] font-medium text-white/80 leading-tight text-center px-1 truncate w-full">
@@ -302,6 +329,8 @@ export default function BookingPage() {
                                   <BedIcon className="h-4 w-4" />
                                 ) : room.status === "dirty" ? (
                                   <SparklesIcon className="h-4 w-4" />
+                                ) : isReserved ? (
+                                  <CalendarIcon className="h-4 w-4" />
                                 ) : (
                                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                                     <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
@@ -312,20 +341,18 @@ export default function BookingPage() {
 
                             {/* Right panel - info */}
                             <div className="flex flex-1 flex-col justify-center gap-0.5 px-3 py-2.5 text-left min-w-0">
-                              {/* Reservation banner on top */}
-                              {room.future_booking_id && (
+                              {/* Reservation banner for occupied rooms that also have a future booking */}
+                              {room.status === "occupied" && room.future_booking_id && (
                                 <div className={`flex items-center gap-1.5 rounded-md px-2 py-1 -mx-1 mb-0.5 ${
                                   room.future_check_in && isWithinHours(room.future_check_in, 2)
                                     ? "bg-red-50 border border-red-200"
                                     : "bg-violet-50 border border-violet-200"
                                 }`}>
-                                  <svg className={`h-3 w-3 flex-shrink-0 ${
+                                  <CalendarIcon className={`h-3 w-3 flex-shrink-0 ${
                                     room.future_check_in && isWithinHours(room.future_check_in, 2)
                                       ? "text-red-500"
                                       : "text-violet-500"
-                                  }`} viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
-                                  </svg>
+                                  }`} />
                                   <p className={`text-[11px] font-semibold truncate ${
                                     room.future_check_in && isWithinHours(room.future_check_in, 2)
                                       ? "text-red-700"
@@ -339,15 +366,15 @@ export default function BookingPage() {
                                 </div>
                               )}
 
-                              {room.status === "available" && !room.future_booking_id && (
+                              {effectiveStatus === "available" && (
                                 <span className={`text-sm font-bold ${cfg.text}`}>
                                   {t("roomAvailable")}
                                 </span>
                               )}
 
-                              {room.status === "available" && room.future_booking_id && !room.current_guest && (
-                                <span className="text-xs text-gray-400">
-                                  {t("roomAvailableReserved")}
+                              {isReserved && (
+                                <span className={`text-sm font-bold ${cfg.text}`}>
+                                  {t("roomReserved")}
                                 </span>
                               )}
 
@@ -371,6 +398,7 @@ export default function BookingPage() {
                                   {t("needsCleaning")}
                                 </span>
                               )}
+                            </div>
                             </div>
                           </button>
                         );
@@ -660,7 +688,7 @@ function RoomActionMenu({
     };
   }, [onClose]);
 
-  const cfg = STATUS_CONFIG[room.status];
+  const cfg = STATUS_CONFIG[getEffectiveStatus(room)];
 
   type MenuItem = { label: string; icon: React.ReactNode; onClick: () => void; variant?: "danger" };
 

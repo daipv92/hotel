@@ -16,9 +16,9 @@ export default function PricingPage() {
   const { t } = useI18n();
 
   const PRICING_TYPES = [
-    { value: "hourly", label: t("pricingTypeHourly") },
-    { value: "overnight", label: t("pricingTypeOvernight") },
-    { value: "daily", label: t("pricingTypeDaily") },
+    { value: "hourly", label: t("pricingHourly") },
+    { value: "overnight", label: t("pricingOvernight") },
+    { value: "daily", label: t("pricingDaily") },
   ] as const;
 
   function pricingTypeLabel(type: string) {
@@ -28,6 +28,94 @@ export default function PricingPage() {
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Test price calculator state
+  const [testCategoryId, setTestCategoryId] = useState("");
+  const [testStartTime, setTestStartTime] = useState("");
+  const [testEndTime, setTestEndTime] = useState("");
+  const [testResult, setTestResult] = useState<{
+    pricingType: string;
+    total: number;
+    duration: string;
+    detail: string;
+    found: boolean;
+  } | null>(null);
+
+  function calculateTestPrice() {
+    if (!testStartTime || !testEndTime || !testCategoryId) return;
+
+    const start = new Date(testStartTime);
+    const end = new Date(testEndTime);
+    if (end <= start) return;
+
+    const diffMs = end.getTime() - start.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    // Same logic as booking page: pick the cheapest option
+    const catRules = rules.filter(
+      (r) => r.room_category_id === testCategoryId && r.is_active
+    );
+
+    const hourlyRule = catRules.find((r) => r.pricing_type === "hourly");
+    const overnightRule = catRules.find((r) => r.pricing_type === "overnight");
+    const dailyRule = catRules.find((r) => r.pricing_type === "daily");
+
+    if (!hourlyRule && !overnightRule && !dailyRule) {
+      setTestResult({ pricingType: "", total: 0, duration: "", detail: "", found: false });
+      return;
+    }
+
+    let bestType: "hourly" | "overnight" | "daily" = "hourly";
+    let bestPrice = 0;
+    let detail = "";
+
+    // Hourly
+    if (hourlyRule) {
+      const minHours = hourlyRule.min_hours ?? 1;
+      bestPrice = hourlyRule.price;
+      if (diffHours > minHours && hourlyRule.extra_hour_price) {
+        const extraHours = Math.ceil(diffHours) - minHours;
+        bestPrice = hourlyRule.price + extraHours * hourlyRule.extra_hour_price;
+        detail = `${t("testPriceBase")}: ${formatPrice(hourlyRule.price)} + ${t("testPriceExtra")}: ${extraHours} ${t("hourLabel")} × ${formatPrice(hourlyRule.extra_hour_price)}`;
+      } else {
+        detail = `${t("testPriceBase")}: ${formatPrice(hourlyRule.price)}`;
+      }
+    }
+
+    // Overnight — use if cheaper
+    if (overnightRule && overnightRule.price < bestPrice) {
+      bestType = "overnight";
+      bestPrice = overnightRule.price;
+      detail = `${formatPrice(overnightRule.price)}`;
+    }
+
+    // Daily — use if cheaper
+    if (dailyRule) {
+      const days = Math.max(1, Math.ceil(diffHours / 24));
+      const dailyTotal = dailyRule.price * days;
+      if (dailyTotal < bestPrice || !hourlyRule) {
+        bestType = "daily";
+        bestPrice = dailyTotal;
+        detail = days > 1
+          ? `${days} × ${formatPrice(dailyRule.price)}`
+          : `${formatPrice(dailyRule.price)}`;
+      }
+    }
+
+    // Format duration
+    const totalH = Math.floor(diffHours);
+    const totalM = Math.round((diffHours - totalH) * 60);
+    let duration = `${totalH} ${t("hourLabel")}`;
+    if (totalM > 0) duration += ` ${totalM} ${t("testPriceMinute")}`;
+
+    setTestResult({
+      pricingType: bestType,
+      total: bestPrice,
+      duration,
+      detail,
+      found: true,
+    });
+  }
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -259,6 +347,103 @@ export default function PricingPage() {
               </table>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Test Price Calculator */}
+      {categories.length > 0 && rules.length > 0 && (
+        <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {t("testPriceTitle")}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-[160px]">
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("testPriceCategory")}
+                </label>
+                <select
+                  value={testCategoryId}
+                  onChange={(e) => {
+                    setTestCategoryId(e.target.value);
+                    setTestResult(null);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">{t("selectPlaceholder")}</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("testPriceStartTime")}
+                </label>
+                <input
+                  type="datetime-local"
+                  value={testStartTime}
+                  onChange={(e) => {
+                    setTestStartTime(e.target.value);
+                    setTestResult(null);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("testPriceEndTime")}
+                </label>
+                <input
+                  type="datetime-local"
+                  value={testEndTime}
+                  onChange={(e) => {
+                    setTestEndTime(e.target.value);
+                    setTestResult(null);
+                  }}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+              <button
+                onClick={calculateTestPrice}
+                disabled={!testCategoryId || !testStartTime || !testEndTime}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                {t("testPriceCalculate")}
+              </button>
+            </div>
+
+            {testResult && (
+              <div className="mt-4">
+                {!testResult.found ? (
+                  <p className="text-sm text-amber-600">
+                    {t("testPriceNoRule")}
+                  </p>
+                ) : (
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                        {pricingTypeLabel(testResult.pricingType)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {t("testPriceDuration")}: {testResult.duration}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-lg font-bold text-green-700">
+                      {formatPrice(testResult.total)}
+                    </div>
+                    {testResult.detail && (
+                      <p className="mt-1 text-xs text-gray-500">{testResult.detail}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
