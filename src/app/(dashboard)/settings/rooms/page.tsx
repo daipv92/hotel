@@ -1,265 +1,366 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Table } from "@/components/ui/Table";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { useAuth } from "@/lib/auth-context";
-import {
-  getRooms,
-  createRoom,
-  updateRoom,
-  deleteRoom,
-} from "@/lib/api/rooms";
-import { getRoomTypes } from "@/lib/api/room-types";
-import { getFloors } from "@/lib/api/floors";
-import type { Room, RoomType, RoomStatus, Floor } from "@/types/database";
+import { createClient } from "@/lib/supabase/client";
+import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
+import type { Room, Floor, RoomCategory } from "@/types/database";
 
-const statusConfig: Record<
-  RoomStatus,
-  { label: string; variant: "success" | "danger" | "default" }
-> = {
-  ready: { label: "San sang", variant: "success" },
-  occupied: { label: "Dang o", variant: "danger" },
-  dirty: { label: "Phong ban", variant: "default" },
-};
+export default function RoomsPage() {
+  const { hotelId } = useHotel();
+  const supabase = createClient();
+  const { t } = useI18n();
 
-export default function SettingsRoomsPage() {
-  const { profile } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
+  const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Room | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Room | null>(null);
 
-  const [roomNumber, setRoomNumber] = useState("");
-  const [floorId, setFloorId] = useState("");
-  const [roomTypeId, setRoomTypeId] = useState("");
-  const [notes, setNotes] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    room_number: "",
+    floor_id: "",
+    room_category_id: "",
+  });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Floor management
+  const [newFloorNumber, setNewFloorNumber] = useState("");
+  const [newFloorName, setNewFloorName] = useState("");
+  const [addingFloor, setAddingFloor] = useState(false);
 
-  async function loadData() {
-    try {
-      const [roomsData, typesData, floorsData] = await Promise.all([
-        getRooms(),
-        getRoomTypes(),
-        getFloors(),
-      ]);
-      setRooms(roomsData);
-      setRoomTypes(typesData);
-      setFloors(floorsData);
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
+  async function fetchAll() {
+    const [roomsRes, floorsRes, catsRes] = await Promise.all([
+      supabase
+        .from("rooms")
+        .select("*, floors(*), room_categories(*)")
+        .eq("hotel_id", hotelId)
+        .order("sort_order")
+        .order("room_number"),
+      supabase
+        .from("floors")
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .order("sort_order")
+        .order("floor_number"),
+      supabase
+        .from("room_categories")
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .order("sort_order")
+        .order("name"),
+    ]);
+
+    setRooms(roomsRes.data ?? []);
+    setFloors(floorsRes.data ?? []);
+    setCategories(catsRes.data ?? []);
+    setLoading(false);
   }
 
-  function openCreate() {
-    setEditing(null);
-    setRoomNumber("");
-    setFloorId("");
-    setRoomTypeId(roomTypes[0]?.id || "");
-    setNotes("");
-    setModalOpen(true);
+  useEffect(() => {
+    fetchAll();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleAddFloor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newFloorNumber.trim()) return;
+    setAddingFloor(true);
+    const floorNum = Number(newFloorNumber);
+    await supabase.from("floors").insert({
+      floor_number: floorNum,
+      name: newFloorName.trim() || `${t("floorLabel")} ${floorNum}`,
+      hotel_id: hotelId,
+      sort_order: floorNum,
+    });
+    setNewFloorNumber("");
+    setNewFloorName("");
+    setAddingFloor(false);
+    fetchAll();
+  }
+
+  async function handleDeleteFloor(id: string) {
+    if (!confirm(t("deleteFloorConfirm")))
+      return;
+    await supabase.from("floors").delete().eq("id", id);
+    fetchAll();
+  }
+
+  function openAdd() {
+    setEditingId(null);
+    setForm({ room_number: "", floor_id: "", room_category_id: "" });
+    setShowModal(true);
   }
 
   function openEdit(room: Room) {
-    setEditing(room);
-    setRoomNumber(room.room_number);
-    const matchFloor = floors.find((f) => f.floor_number === room.floor);
-    setFloorId(matchFloor?.id || "");
-    setRoomTypeId(room.room_type_id);
-    setNotes(room.notes || "");
-    setModalOpen(true);
+    setEditingId(room.id);
+    setForm({
+      room_number: room.room_number,
+      floor_id: room.floor_id,
+      room_category_id: room.room_category_id,
+    });
+    setShowModal(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!profile) return;
     setSaving(true);
 
-    const selectedFloor = floors.find((f) => f.id === floorId);
-    const floorNumber = selectedFloor?.floor_number ?? 1;
+    const payload = {
+      room_number: form.room_number.trim(),
+      floor_id: form.floor_id,
+      room_category_id: form.room_category_id,
+      hotel_id: hotelId,
+    };
 
-    try {
-      if (editing) {
-        await updateRoom(editing.id, {
-          room_number: roomNumber,
-          floor: floorNumber,
-          room_type_id: roomTypeId,
-          notes: notes || null,
-        });
-      } else {
-        await createRoom({
-          hotel_id: profile.hotel_id,
-          room_number: roomNumber,
-          floor: floorNumber,
-          room_type_id: roomTypeId,
-          notes: notes || null,
-        });
-      }
-      setModalOpen(false);
-      await loadData();
-    } catch {
-      // handle error
-    } finally {
-      setSaving(false);
+    if (editingId) {
+      await supabase.from("rooms").update(payload).eq("id", editingId);
+    } else {
+      await supabase.from("rooms").insert(payload);
     }
+
+    setSaving(false);
+    setShowModal(false);
+    fetchAll();
   }
 
-  async function handleDelete() {
-    if (!confirmDelete) return;
-    try {
-      await deleteRoom(confirmDelete.id);
-      setConfirmDelete(null);
-      await loadData();
-    } catch {
-      // handle error
-    }
+  async function handleDelete(id: string) {
+    if (!confirm(t("deleteRoomConfirm"))) return;
+    await supabase.from("rooms").delete().eq("id", id);
+    fetchAll();
   }
-
-  const columns = [
-    { key: "room_number", label: "So phong" },
-    { key: "floor", label: "Tang" },
-    {
-      key: "room_type",
-      label: "Loai phong",
-      render: (r: Room) => r.room_type?.name || "—",
-    },
-    {
-      key: "status",
-      label: "Trang thai",
-      render: (r: Room) => (
-        <Badge variant={statusConfig[r.status].variant}>
-          {statusConfig[r.status].label}
-        </Badge>
-      ),
-    },
-    { key: "notes", label: "Ghi chu", render: (r: Room) => r.notes || "—" },
-    {
-      key: "actions",
-      label: "",
-      render: (r: Room) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>
-            Sua
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => setConfirmDelete(r)}
-          >
-            Xoa
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-        <div className="h-64 animate-pulse rounded-lg bg-slate-200" />
-      </div>
-    );
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">Cau hinh Phong</h2>
-        <Button onClick={openCreate}>Them phong</Button>
+    <>
+      {/* Floor management */}
+      <div className="mb-6">
+        <h2 className="mb-3 text-base font-semibold text-gray-900">
+          {t("floorManagement")}
+        </h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <form onSubmit={handleAddFloor} className="mb-3 flex gap-2">
+            <input
+              type="number"
+              value={newFloorNumber}
+              onChange={(e) => setNewFloorNumber(e.target.value)}
+              placeholder={t("floorNumberPlaceholder")}
+              min="0"
+              className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <input
+              type="text"
+              value={newFloorName}
+              onChange={(e) => setNewFloorName(e.target.value)}
+              placeholder={t("floorNamePlaceholder")}
+              className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              type="submit"
+              disabled={addingFloor || !newFloorNumber.trim()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            >
+              {t("addFloor")}
+            </button>
+          </form>
+          {floors.length === 0 ? (
+            <p className="text-sm text-gray-500">{t("noFloorsYet")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {floors.map((floor) => (
+                <span
+                  key={floor.id}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
+                >
+                  {floor.name} ({t("floorLabel")} {floor.floor_number})
+                  <button
+                    onClick={() => handleDeleteFloor(floor.id)}
+                    className="ml-1 text-gray-400 hover:text-red-500"
+                    title={t("deleteFloor")}
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <Table columns={columns} data={rooms} rowKey={(r) => r.id} />
+      {/* Room management */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">
+          {t("roomList")}
+        </h2>
+        <button
+          onClick={openAdd}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+        >
+          {t("addRoom")}
+        </button>
+      </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Sua phong" : "Them phong"}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="So phong"
-            value={roomNumber}
-            onChange={(e) => setRoomNumber(e.target.value)}
-            placeholder="VD: 101"
-            required
-          />
-          <Select
-            label="Tang"
-            value={floorId}
-            onChange={(e) => setFloorId(e.target.value)}
-            options={floors.map((f) => ({
-              value: f.id,
-              label: `${f.name} (Tang ${f.floor_number})`,
-            }))}
-            placeholder="Chon tang"
-            required
-          />
-          <Select
-            label="Loai phong"
-            value={roomTypeId}
-            onChange={(e) => setRoomTypeId(e.target.value)}
-            options={roomTypes.map((rt) => ({
-              value: rt.id,
-              label: `${rt.name} (${rt.code})`,
-            }))}
-            placeholder="Chon loai phong"
-            required
-          />
-          <Input
-            label="Ghi chu"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ghi chu ve phong"
-          />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setModalOpen(false)}
-            >
-              Huy
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Dang luu..." : editing ? "Cap nhat" : "Them moi"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        title="Xac nhan xoa"
-      >
-        <p className="text-slate-600">
-          Ban co chac chan muon xoa phong{" "}
-          <strong>{confirmDelete?.room_number}</strong>? Hanh dong nay khong the
-          hoan tac.
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmDelete(null)}>
-            Huy
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Xoa
-          </Button>
+      {rooms.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
+          {t("noRoomsYet")}
         </div>
-      </Modal>
-    </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  {t("thRoomNumber")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  {t("thFloor")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  {t("thRoomType")}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  {t("thStatus")}
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                  {t("actions")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {rooms.map((room) => (
+                <tr key={room.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {room.room_number}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {room.floors?.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-700">
+                    {room.room_categories?.name}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                        room.status === "available"
+                          ? "bg-green-50 text-green-700"
+                          : room.status === "occupied"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-yellow-50 text-yellow-700"
+                      }`}
+                    >
+                      {room.status === "available"
+                        ? t("roomStatusAvailable")
+                        : room.status === "occupied"
+                          ? t("roomStatusOccupied")
+                          : t("roomStatusDirty")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => openEdit(room)}
+                      className="mr-2 text-sm text-blue-600 hover:text-blue-800"
+                    >
+                      {t("edit")}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(room.id)}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      {t("delete")}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+              {editingId ? t("editRoom") : t("addRoom")}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("roomNumberLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={form.room_number}
+                  onChange={(e) =>
+                    setForm({ ...form, room_number: e.target.value })
+                  }
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  placeholder={t("roomNumberPlaceholder")}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("floorLabel")}
+                </label>
+                <select
+                  value={form.floor_id}
+                  onChange={(e) =>
+                    setForm({ ...form, floor_id: e.target.value })
+                  }
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">{t("selectFloorPlaceholder")}</option>
+                  {floors.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({t("floorLabel")} {f.floor_number})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("roomTypeLabel")}
+                </label>
+                <select
+                  value={form.room_category_id}
+                  onChange={(e) =>
+                    setForm({ ...form, room_category_id: e.target.value })
+                  }
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">{t("selectRoomTypePlaceholder")}</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? t("saving") : t("save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

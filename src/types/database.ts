@@ -1,145 +1,151 @@
-export type UserRole = "admin" | "receptionist";
-
-export interface Profile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  hotel_id: string;
-  created_at: string;
-}
-
-export interface Hotel {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  created_at: string;
-}
-
-export type RoomStatus = "ready" | "occupied" | "dirty";
-
-export interface RoomType {
-  id: string;
-  hotel_id: string;
-  name: string;
-  code: string;
-  description: string | null;
-  base_price: number;
-  max_occupancy: number;
-  amenities: string[];
-  images: string[];
-  created_at: string;
-}
-
-export interface Room {
-  id: string;
-  hotel_id: string;
-  room_number: string;
-  floor: number;
-  room_type_id: string;
-  status: RoomStatus;
-  notes: string | null;
-  created_at: string;
-  // joined
-  room_type?: RoomType;
-}
-
-export interface RoomStatusLog {
-  id: string;
-  room_id: string;
-  old_status: RoomStatus | null;
-  new_status: RoomStatus;
-  changed_by: string | null;
-  changed_at: string;
-}
-
-export type BookingStatus =
-  | "confirmed"
-  | "checked_in"
-  | "checked_out"
-  | "cancelled"
-  | "no_show";
-
-export interface Guest {
-  id: string;
-  hotel_id: string;
-  full_name: string;
-  id_number: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  nationality: string | null;
-  date_of_birth: string | null;
-  notes: string | null;
-  created_at: string;
-}
-
-export interface Booking {
-  id: string;
-  hotel_id: string;
-  booking_code: string;
-  guest_id: string;
-  room_id: string;
-  check_in_date: string;
-  check_out_date: string;
-  actual_check_in: string | null;
-  actual_check_out: string | null;
-  num_guests: number;
-  status: BookingStatus;
-  total_amount: number;
-  paid_amount: number;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-  // joined
-  guest?: Guest;
-  room?: Room;
-}
-
-export interface BookingService {
-  id: string;
-  booking_id: string;
-  service_name: string;
-  quantity: number;
-  unit_price: number;
-  total_price: number;
-  added_at: string;
-}
-
-export interface Floor {
+export type Floor = {
   id: string;
   hotel_id: string;
   name: string;
   floor_number: number;
-  description: string | null;
+  sort_order: number;
   created_at: string;
-}
+  updated_at: string;
+};
 
-export type PricingType = "hourly" | "daily";
-
-export interface PricingRule {
-  id: string;
-  hotel_id: string;
-  room_type_id: string;
-  pricing_type: PricingType;
-  price: number;
-  start_hour: number | null;
-  end_hour: number | null;
-  description: string | null;
-  created_at: string;
-  // joined
-  room_type?: RoomType;
-}
-
-export type ServiceCategory = "food" | "drink" | "clean" | "other";
-
-export interface Service {
+export type RoomCategory = {
   id: string;
   hotel_id: string;
   name: string;
-  price: number;
-  category: ServiceCategory;
+  description: string | null;
+  base_price: number;
+  sort_order: number;
   created_at: string;
-}
+  updated_at: string;
+};
+
+export type Room = {
+  id: string;
+  hotel_id: string;
+  floor_id: string;
+  room_category_id: string;
+  room_number: string;
+  status: "available" | "occupied" | "dirty";
+  sort_order: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  floors?: Floor;
+  room_categories?: RoomCategory;
+};
+
+export type PricingRule = {
+  id: string;
+  room_category_id: string;
+  pricing_type: "hourly" | "overnight" | "daily";
+  price: number;
+  min_hours: number | null;
+  max_hours: number | null;
+  extra_hour_price: number | null;
+  overnight_checkin_from: string | null;
+  overnight_checkout_before: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  room_categories?: RoomCategory;
+};
+
+export type ServiceCategory = {
+  id: string;
+  hotel_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type Service = {
+  id: string;
+  hotel_id: string;
+  category_id: string | null;
+  name: string;
+  price: number;
+  unit: string;
+  is_active: boolean;
+  usage_count: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  service_categories?: ServiceCategory;
+};
+
+export type Booking = {
+  id: string;
+  hotel_id: string;
+  room_id: string;
+  guest_id: string | null;
+  pricing_type: "hourly" | "overnight" | "daily" | null;
+  status: "reserved" | "checked_in" | "checked_out" | "cancelled";
+  check_in_at: string;
+  check_out_at: string | null;
+  expected_check_out_at: string | null;
+  guest_name: string;
+  guest_id_number: string | null;
+  guest_count: number;
+  room_charge: number;
+  service_total: number;
+  discount: number;
+  total_amount: number;
+  notes: string | null;
+  created_by: string | null;
+  checked_out_by: string | null;
+  created_at: string;
+  updated_at: string;
+  rooms?: Room;
+};
+
+export type BookingService = {
+  id: string;
+  booking_id: string;
+  service_id: string | null;
+  service_name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  added_by: string | null;
+  created_at: string;
+};
+
+export type ExpenseCategory = {
+  id: string;
+  hotel_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type Transaction = {
+  id: string;
+  hotel_id: string;
+  type: "income" | "expense";
+  amount: number;
+  description: string;
+  booking_id: string | null;
+  expense_category_id: string | null;
+  transaction_date: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  expense_categories?: ExpenseCategory;
+};
+
+export type RoomOccupancy = {
+  hotel_id: string;
+  room_id: string;
+  room_number: string;
+  status: "available" | "occupied" | "dirty";
+  floor_name: string;
+  floor_number: number;
+  category_name: string;
+  current_booking_id: string | null;
+  current_guest: string | null;
+  check_in_at: string | null;
+  future_booking_id: string | null;
+  future_guest: string | null;
+  future_check_in: string | null;
+};

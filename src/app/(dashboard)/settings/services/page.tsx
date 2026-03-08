@@ -1,241 +1,427 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Table } from "@/components/ui/Table";
-import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { useAuth } from "@/lib/auth-context";
-import {
-  getServices,
-  createService,
-  updateService,
-  deleteService,
-} from "@/lib/api/services";
+import { createClient } from "@/lib/supabase/client";
+import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { Service, ServiceCategory } from "@/types/database";
 
 function formatPrice(price: number) {
-  return new Intl.NumberFormat("vi-VN", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(price);
+  return price.toLocaleString("vi-VN") + " đ";
 }
 
-const categoryOptions: { value: ServiceCategory; label: string }[] = [
-  { value: "food", label: "Do an" },
-  { value: "drink", label: "Do uong" },
-  { value: "clean", label: "Ve sinh" },
-  { value: "other", label: "Khac" },
-];
-
-const categoryLabels: Record<ServiceCategory, { label: string; variant: "success" | "danger" | "default" }> = {
-  food: { label: "Do an", variant: "success" },
-  drink: { label: "Do uong", variant: "default" },
-  clean: { label: "Ve sinh", variant: "danger" },
-  other: { label: "Khac", variant: "default" },
-};
-
 export default function ServicesPage() {
-  const { profile } = useAuth();
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Service | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Service | null>(null);
+  const { hotelId } = useHotel();
+  const supabase = createClient();
+  const { t } = useI18n();
 
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState("");
-  const [category, setCategory] = useState<ServiceCategory>("food");
+  const [services, setServices] = useState<Service[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<
+    ServiceCategory[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  // Service form
+  const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    price: "",
+    unit: "lần",
+    category_id: "",
+  });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  // Category management
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
 
-  async function loadData() {
-    try {
-      const data = await getServices();
-      setServices(data);
-    } catch {
-      // handle error
-    } finally {
-      setLoading(false);
-    }
+  async function fetchAll() {
+    const [servicesRes, catsRes] = await Promise.all([
+      supabase
+        .from("services")
+        .select("*, service_categories(*)")
+        .eq("hotel_id", hotelId)
+        .order("sort_order")
+        .order("name"),
+      supabase
+        .from("service_categories")
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .order("sort_order")
+        .order("name"),
+    ]);
+
+    setServices(servicesRes.data ?? []);
+    setServiceCategories(catsRes.data ?? []);
+    setLoading(false);
   }
 
-  function openCreate() {
-    setEditing(null);
-    setName("");
-    setPrice("");
-    setCategory("food");
-    setModalOpen(true);
+  useEffect(() => {
+    fetchAll();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Category CRUD
+  async function handleAddCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setAddingCategory(true);
+    await supabase.from("service_categories").insert({
+      name: newCategoryName.trim(),
+      hotel_id: hotelId,
+    });
+    setNewCategoryName("");
+    setAddingCategory(false);
+    fetchAll();
+  }
+
+  async function handleDeleteCategory(id: string) {
+    if (
+      !confirm(t("deleteServiceCategoryConfirm"))
+    )
+      return;
+    await supabase.from("service_categories").delete().eq("id", id);
+    fetchAll();
+  }
+
+  // Service CRUD
+  function openAdd() {
+    setEditingId(null);
+    setForm({ name: "", price: "", unit: "lần", category_id: "" });
+    setShowModal(true);
   }
 
   function openEdit(svc: Service) {
-    setEditing(svc);
-    setName(svc.name);
-    setPrice(String(svc.price));
-    setCategory(svc.category);
-    setModalOpen(true);
+    setEditingId(svc.id);
+    setForm({
+      name: svc.name,
+      price: String(svc.price),
+      unit: svc.unit,
+      category_id: svc.category_id ?? "",
+    });
+    setShowModal(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!profile) return;
     setSaving(true);
 
-    const values = {
-      name,
-      price: Number(price),
-      category,
+    const payload = {
+      name: form.name.trim(),
+      price: Number(form.price),
+      unit: form.unit.trim() || "lần",
+      category_id: form.category_id || null,
+      hotel_id: hotelId,
     };
 
-    try {
-      if (editing) {
-        await updateService(editing.id, values);
-      } else {
-        await createService({ ...values, hotel_id: profile.hotel_id });
-      }
-      setModalOpen(false);
-      await loadData();
-    } catch {
-      // handle error
-    } finally {
-      setSaving(false);
+    if (editingId) {
+      await supabase.from("services").update(payload).eq("id", editingId);
+    } else {
+      await supabase.from("services").insert(payload);
     }
+
+    setSaving(false);
+    setShowModal(false);
+    fetchAll();
   }
 
-  async function handleDelete() {
-    if (!confirmDelete) return;
-    try {
-      await deleteService(confirmDelete.id);
-      setConfirmDelete(null);
-      await loadData();
-    } catch {
-      // handle error
-    }
+  async function handleDelete(id: string) {
+    if (!confirm(t("deleteServiceConfirm"))) return;
+    await supabase.from("services").delete().eq("id", id);
+    fetchAll();
   }
-
-  const columns = [
-    { key: "name", label: "Ten dich vu" },
-    {
-      key: "category",
-      label: "Danh muc",
-      render: (s: Service) => (
-        <Badge variant={categoryLabels[s.category].variant}>
-          {categoryLabels[s.category].label}
-        </Badge>
-      ),
-    },
-    {
-      key: "price",
-      label: "Gia",
-      render: (s: Service) => formatPrice(s.price),
-    },
-    {
-      key: "actions",
-      label: "",
-      render: (s: Service) => (
-        <div className="flex gap-2">
-          <Button size="sm" variant="ghost" onClick={() => openEdit(s)}>
-            Sua
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-red-600 hover:text-red-700"
-            onClick={() => setConfirmDelete(s)}
-          >
-            Xoa
-          </Button>
-        </div>
-      ),
-    },
-  ];
 
   if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
-        <div className="h-64 animate-pulse rounded-lg bg-slate-200" />
-      </div>
-    );
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
+  // Group services by category
+  const grouped = serviceCategories
+    .map((cat) => ({
+      category: cat,
+      services: services.filter((s) => s.category_id === cat.id),
+    }))
+    .filter((g) => g.services.length > 0);
+
+  const uncategorized = services.filter((s) => !s.category_id);
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-800">Dich vu</h2>
-        <Button onClick={openCreate}>Them dich vu</Button>
+    <>
+      {/* Category management */}
+      <div className="mb-6">
+        <h2 className="mb-3 text-base font-semibold text-gray-900">
+          {t("serviceCategoriesTitle")}
+        </h2>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <form onSubmit={handleAddCategory} className="mb-3 flex gap-2">
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder={t("serviceCategoryPlaceholder")}
+              className="w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              type="submit"
+              disabled={addingCategory || !newCategoryName.trim()}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            >
+              {t("addServiceCategory")}
+            </button>
+          </form>
+          {serviceCategories.length === 0 ? (
+            <p className="text-sm text-gray-500">{t("noServiceCategoriesYet")}</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {serviceCategories.map((cat) => (
+                <span
+                  key={cat.id}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
+                >
+                  {cat.name}
+                  <button
+                    onClick={() => handleDeleteCategory(cat.id)}
+                    className="ml-1 text-gray-400 hover:text-red-500"
+                    title={t("deleteServiceCategory")}
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <Table columns={columns} data={services} rowKey={(s) => s.id} />
+      {/* Service list */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">
+          {t("serviceList")}
+        </h2>
+        <button
+          onClick={openAdd}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+        >
+          {t("addService")}
+        </button>
+      </div>
 
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editing ? "Sua dich vu" : "Them dich vu"}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Ten dich vu"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="VD: Nuoc suoi"
-            required
-          />
-          <Select
-            label="Danh muc"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as ServiceCategory)}
-            options={categoryOptions}
-            required
-          />
-          <Input
-            label="Gia (VND)"
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="10000"
-            required
-          />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setModalOpen(false)}
-            >
-              Huy
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Dang luu..." : editing ? "Cap nhat" : "Them moi"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        title="Xac nhan xoa"
-      >
-        <p className="text-slate-600">
-          Ban co chac chan muon xoa dich vu{" "}
-          <strong>{confirmDelete?.name}</strong>? Hanh dong nay khong the hoan
-          tac.
-        </p>
-        <div className="mt-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={() => setConfirmDelete(null)}>
-            Huy
-          </Button>
-          <Button variant="danger" onClick={handleDelete}>
-            Xoa
-          </Button>
+      {services.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
+          {t("noServicesYetSettings")}
         </div>
-      </Modal>
-    </div>
+      ) : (
+        <div className="space-y-4">
+          {grouped.map(({ category, services: catServices }) => (
+            <div
+              key={category.id}
+              className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+            >
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {category.name}
+                </h3>
+              </div>
+              <table className="w-full">
+                <thead className="bg-gray-50/50">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thServiceName")}
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thPrice")}
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thUnit")}
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("actions")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {catServices.map((svc) => (
+                    <tr key={svc.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {svc.name}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-gray-700">
+                        {formatPrice(svc.price)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {svc.unit}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => openEdit(svc)}
+                          className="mr-2 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {t("edit")}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(svc.id)}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          {t("delete")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          {uncategorized.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <h3 className="text-sm font-semibold text-gray-500">
+                  {t("uncategorizedServices")}
+                </h3>
+              </div>
+              <table className="w-full">
+                <thead className="bg-gray-50/50">
+                  <tr>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thServiceName")}
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thPrice")}
+                    </th>
+                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("thUnit")}
+                    </th>
+                    <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {t("actions")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {uncategorized.map((svc) => (
+                    <tr key={svc.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {svc.name}
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm text-gray-700">
+                        {formatPrice(svc.price)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {svc.unit}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => openEdit(svc)}
+                          className="mr-2 text-sm text-blue-600 hover:text-blue-800"
+                        >
+                          {t("edit")}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(svc.id)}
+                          className="text-sm text-red-600 hover:text-red-800"
+                        >
+                          {t("delete")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">
+              {editingId ? t("editService") : t("addService")}
+            </h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("serviceNameLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  placeholder={t("serviceNamePlaceholder")}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {t("priceVNDLabel")}
+                  </label>
+                  <input
+                    type="number"
+                    value={form.price}
+                    onChange={(e) =>
+                      setForm({ ...form, price: e.target.value })
+                    }
+                    required
+                    min="0"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {t("serviceUnitLabel")}
+                  </label>
+                  <input
+                    type="text"
+                    value={form.unit}
+                    onChange={(e) =>
+                      setForm({ ...form, unit: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    placeholder={t("serviceUnitPlaceholder")}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  {t("serviceCategoryLabel")}
+                </label>
+                <select
+                  value={form.category_id}
+                  onChange={(e) =>
+                    setForm({ ...form, category_id: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">{t("noCategory")}</option>
+                  {serviceCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {saving ? t("saving") : t("save")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

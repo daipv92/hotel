@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { I18nProvider } from "@/components/i18n-provider";
 import "./globals.css";
-import { AuthProvider } from "@/lib/auth-context";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Hotel Management",
-  description: "He thong quan ly khach san",
+  description: "Hotel management system",
 };
 
 export default function RootLayout({
@@ -20,8 +14,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${geistSans.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+      <body className="min-h-screen bg-gray-50 antialiased">
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );
