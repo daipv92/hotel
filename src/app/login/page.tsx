@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+  const { t } = useI18n();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -37,9 +40,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">Hotel Manager</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t("loginTitle")}</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Đăng nhập để tiếp tục
+              {t("loginSubtitle")}
             </p>
           </div>
 
@@ -49,7 +52,7 @@ export default function LoginPage() {
                 htmlFor="email"
                 className="mb-1 block text-sm font-medium text-gray-700"
               >
-                Email
+                {t("loginEmail")}
               </label>
               <input
                 id="email"
@@ -59,7 +62,7 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="email@example.com"
+                placeholder={t("loginEmailPlaceholder")}
               />
             </div>
 
@@ -68,7 +71,7 @@ export default function LoginPage() {
                 htmlFor="password"
                 className="mb-1 block text-sm font-medium text-gray-700"
               >
-                Mật khẩu
+                {t("loginPassword")}
               </label>
               <input
                 id="password"
@@ -78,7 +81,7 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="••••••••"
+                placeholder={t("loginPasswordPlaceholder")}
               />
             </div>
 
@@ -93,9 +96,13 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {loading ? t("loginLoading") : t("loginButton")}
             </button>
           </form>
+
+          <div className="mt-4 flex justify-center">
+            <LanguageSwitcher />
+          </div>
         </div>
       </div>
     </div>

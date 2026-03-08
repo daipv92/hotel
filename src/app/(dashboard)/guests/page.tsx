@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { Booking } from "@/types/database";
 
 function formatDateTime(date: string) {
@@ -31,6 +32,7 @@ export default function GuestsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [detailBooking, setDetailBooking] = useState<GuestBooking | null>(null);
+  const { t } = useI18n();
 
   const fetchGuests = useCallback(async () => {
     setLoading(true);
@@ -62,10 +64,10 @@ export default function GuestsPage() {
     <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-gray-900">
-          Lich su khach hang
+          {t("guestsTitle")}
         </h2>
         <p className="text-sm text-gray-500">
-          Danh sach khach da tra phong
+          {t("guestsSubtitle")}
         </p>
       </div>
 
@@ -75,18 +77,18 @@ export default function GuestsPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tim theo ten khach hoac CCCD..."
+          placeholder={t("guestsSearchPlaceholder")}
           className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
         />
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <p className="text-sm text-gray-500">Dang tai...</p>
+          <p className="text-sm text-gray-500">{t("loading")}</p>
         </div>
       ) : bookings.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          {search ? "Khong tim thay khach nao." : "Chua co lich su khach."}
+          {search ? t("noGuestsFound") : t("noGuestHistory")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -96,22 +98,22 @@ export default function GuestsPage() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Ten khach
+                    {t("thGuestName")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    CCCD
+                    {t("thCCCD")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Phong
+                    {t("thRoom")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Nhan phong
+                    {t("thCheckin")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Tra phong
+                    {t("thCheckout")}
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">
-                    Tong tien
+                    {t("thTotal")}
                   </th>
                 </tr>
               </thead>
@@ -195,6 +197,7 @@ function GuestDetailModal({
   onClose: () => void;
 }) {
   const supabase = createClient();
+  const { t } = useI18n();
   const [services, setServices] = useState<
     { service_name: string; quantity: number; total_price: number }[]
   >([]);
@@ -209,9 +212,9 @@ function GuestDetailModal({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pricingTypeLabels: Record<string, string> = {
-    hourly: "Theo gio",
-    overnight: "Qua dem",
-    daily: "Theo ngay",
+    hourly: t("pricingHourly"),
+    overnight: t("pricingOvernight"),
+    daily: t("pricingDaily"),
   };
 
   return (
@@ -225,7 +228,7 @@ function GuestDetailModal({
                 {booking.guest_name}
               </h3>
               <p className="text-sm text-gray-500">
-                Phong {booking.rooms?.room_number}
+                {t("roomDetail")} {booking.rooms?.room_number}
               </p>
             </div>
             <button
@@ -248,32 +251,32 @@ function GuestDetailModal({
           <div className="grid grid-cols-2 gap-3">
             {booking.guest_id_number && (
               <div>
-                <p className="text-xs text-gray-500">CCCD</p>
+                <p className="text-xs text-gray-500">{t("thCCCD")}</p>
                 <p className="text-sm text-gray-700">
                   {booking.guest_id_number}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-xs text-gray-500">So khach</p>
+              <p className="text-xs text-gray-500">{t("guestDetailGuestCount")}</p>
               <p className="text-sm text-gray-700">{booking.guest_count}</p>
             </div>
             {booking.pricing_type && (
               <div>
-                <p className="text-xs text-gray-500">Hinh thuc</p>
+                <p className="text-xs text-gray-500">{t("guestDetailPricingType")}</p>
                 <p className="text-sm text-gray-700">
                   {pricingTypeLabels[booking.pricing_type]}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-xs text-gray-500">Nhan phong</p>
+              <p className="text-xs text-gray-500">{t("checkinLabel")}</p>
               <p className="text-sm text-gray-700">
                 {formatDateTime(booking.check_in_at)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500">Tra phong</p>
+              <p className="text-xs text-gray-500">{t("thCheckout")}</p>
               <p className="text-sm text-gray-700">
                 {booking.check_out_at
                   ? formatDateTime(booking.check_out_at)
@@ -284,7 +287,7 @@ function GuestDetailModal({
 
           {booking.notes && (
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-xs text-gray-500">Ghi chu</p>
+              <p className="text-xs text-gray-500">{t("notes")}</p>
               <p className="text-sm text-gray-700">{booking.notes}</p>
             </div>
           )}
@@ -293,7 +296,7 @@ function GuestDetailModal({
           {services.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-medium uppercase text-gray-500">
-                Dich vu su dung
+                {t("guestDetailServicesUsed")}
               </p>
               <div className="rounded-lg border border-gray-200">
                 {services.map((svc, i) => (
@@ -319,14 +322,14 @@ function GuestDetailModal({
           {/* Totals */}
           <div className="rounded-lg bg-gray-50 p-3 space-y-1.5">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Tien phong</span>
+              <span className="text-gray-500">{t("guestDetailRoomCharge")}</span>
               <span className="text-gray-700">
                 {formatPrice(booking.room_charge)}
               </span>
             </div>
             {booking.service_total > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Dich vu</span>
+                <span className="text-gray-500">{t("guestDetailServices")}</span>
                 <span className="text-gray-700">
                   {formatPrice(booking.service_total)}
                 </span>
@@ -334,14 +337,14 @@ function GuestDetailModal({
             )}
             {booking.discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Giam gia</span>
+                <span className="text-gray-500">{t("guestDetailDiscount")}</span>
                 <span className="text-red-600">
                   -{formatPrice(booking.discount)}
                 </span>
               </div>
             )}
             <div className="flex justify-between border-t border-gray-200 pt-1.5 text-sm font-semibold">
-              <span className="text-gray-900">Tong cong</span>
+              <span className="text-gray-900">{t("guestDetailTotal")}</span>
               <span className="text-gray-900">
                 {formatPrice(booking.total_amount)}
               </span>
@@ -355,7 +358,7 @@ function GuestDetailModal({
             onClick={onClose}
             className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
           >
-            Dong
+            {t("close")}
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
+import type { TranslationKeys } from "@/lib/i18n";
 import type {
   RoomOccupancy,
   Booking,
@@ -79,7 +81,7 @@ function SparklesIcon({ className = "h-4 w-4" }: { className?: string }) {
 // ─── Status config ───
 const STATUS_CONFIG = {
   available: {
-    label: "Trong",
+    label: "statusAvailable",
     leftBg: "bg-emerald-600",
     cardBg: "bg-white border-emerald-200 hover:border-emerald-300 hover:shadow-emerald-100",
     dot: "bg-emerald-500",
@@ -89,7 +91,7 @@ const STATUS_CONFIG = {
     statBg: "bg-gradient-to-br from-emerald-500 to-green-600",
   },
   occupied: {
-    label: "Dang o",
+    label: "statusOccupied",
     leftBg: "bg-red-600",
     cardBg: "bg-white border-blue-200 hover:border-blue-300 hover:shadow-blue-100",
     dot: "bg-blue-500",
@@ -99,7 +101,7 @@ const STATUS_CONFIG = {
     statBg: "bg-gradient-to-br from-blue-500 to-indigo-600",
   },
   dirty: {
-    label: "Can don",
+    label: "statusDirty",
     leftBg: "bg-amber-500",
     cardBg: "bg-white border-amber-200 hover:border-amber-300 hover:shadow-amber-100",
     dot: "bg-amber-500",
@@ -128,6 +130,7 @@ export default function BookingPage() {
   const [changeRoomModal, setChangeRoomModal] = useState<string | null>(null);
   const [actionMenu, setActionMenu] = useState<{ room: RoomOccupancy; x: number; y: number } | null>(null);
   const [reserveWarning, setReserveWarning] = useState<{ room: RoomOccupancy; action: "quick" | "checkin" } | null>(null);
+  const { t } = useI18n();
 
   const fetchRooms = useCallback(async () => {
     const { data } = await supabase
@@ -168,7 +171,7 @@ export default function BookingPage() {
     await supabase.from("bookings").insert({
       hotel_id: hotelId,
       room_id: room.room_id,
-      guest_name: "Khach",
+      guest_name: t("defaultGuestName"),
       guest_count: 1,
       status: "checked_in",
       check_in_at: new Date().toISOString(),
@@ -194,7 +197,7 @@ export default function BookingPage() {
       <div className="flex items-center justify-center py-20">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-          <p className="text-sm text-gray-500">Dang tai...</p>
+          <p className="text-sm text-gray-500">{t("loading")}</p>
         </div>
       </div>
     );
@@ -206,10 +209,10 @@ export default function BookingPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(
           [
-            { key: "all" as StatusFilter, label: "Tong phong", icon: <BedIcon className="h-6 w-6" />, bg: "bg-gradient-to-br from-gray-600 to-gray-800" },
-            { key: "available" as StatusFilter, label: "Phong trong", icon: <BedIcon className="h-6 w-6" />, bg: STATUS_CONFIG.available.statBg },
-            { key: "occupied" as StatusFilter, label: "Dang su dung", icon: <UserIcon className="h-6 w-6" />, bg: STATUS_CONFIG.occupied.statBg },
-            { key: "dirty" as StatusFilter, label: "Can don dep", icon: <SparklesIcon className="h-6 w-6" />, bg: STATUS_CONFIG.dirty.statBg },
+            { key: "all" as StatusFilter, label: t("statTotal"), icon: <BedIcon className="h-6 w-6" />, bg: "bg-gradient-to-br from-gray-600 to-gray-800" },
+            { key: "available" as StatusFilter, label: t("statAvailable"), icon: <BedIcon className="h-6 w-6" />, bg: STATUS_CONFIG.available.statBg },
+            { key: "occupied" as StatusFilter, label: t("statOccupied"), icon: <UserIcon className="h-6 w-6" />, bg: STATUS_CONFIG.occupied.statBg },
+            { key: "dirty" as StatusFilter, label: t("statDirty"), icon: <SparklesIcon className="h-6 w-6" />, bg: STATUS_CONFIG.dirty.statBg },
           ]
         ).map(({ key, label, icon, bg }) => (
           <button
@@ -232,12 +235,12 @@ export default function BookingPage() {
 
       {/* Legend bar */}
       <div className="mb-4 flex items-center gap-4 rounded-xl bg-white px-4 py-2.5 shadow-sm border border-gray-100">
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Trang thai:</span>
+        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{t("legendLabel")}</span>
         {(
           [
-            { status: "available" as const, label: "Trong" },
-            { status: "occupied" as const, label: "Dang o" },
-            { status: "dirty" as const, label: "Can don" },
+            { status: "available" as const, label: t("legendAvailable") },
+            { status: "occupied" as const, label: t("legendOccupied") },
+            { status: "dirty" as const, label: t("legendDirty") },
           ]
         ).map(({ status, label }) => (
           <div key={status} className="flex items-center gap-1.5">
@@ -251,8 +254,8 @@ export default function BookingPage() {
       {grouped.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white px-6 py-16 text-center">
           <BedIcon className="mx-auto h-12 w-12 text-gray-300" />
-          <p className="mt-3 text-sm font-medium text-gray-500">Khong co phong nao.</p>
-          <p className="mt-1 text-xs text-gray-400">Thay doi bo loc de xem phong khac.</p>
+          <p className="mt-3 text-sm font-medium text-gray-500">{t("noRooms")}</p>
+          <p className="mt-1 text-xs text-gray-400">{t("noRoomsHint")}</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -273,7 +276,7 @@ export default function BookingPage() {
                     <div className="mb-3 flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-gray-600">{cat.categoryName}</h3>
                       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                        {cat.rooms.length} phong
+                        {cat.rooms.length} {t("roomCount")}
                       </span>
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -338,20 +341,20 @@ export default function BookingPage() {
 
                               {room.status === "available" && !room.future_booking_id && (
                                 <span className={`text-sm font-bold ${cfg.text}`}>
-                                  Phong trong
+                                  {t("roomAvailable")}
                                 </span>
                               )}
 
                               {room.status === "available" && room.future_booking_id && !room.current_guest && (
                                 <span className="text-xs text-gray-400">
-                                  Phong trong - co dat truoc
+                                  {t("roomAvailableReserved")}
                                 </span>
                               )}
 
                               {room.status === "occupied" && (
                                 <>
                                   <p className="truncate text-sm font-bold text-gray-900">
-                                    {room.current_guest || "Khach"}
+                                    {room.current_guest || t("defaultGuestName")}
                                   </p>
                                   {room.check_in_at && (
                                     <p className="text-xs text-gray-500">
@@ -365,7 +368,7 @@ export default function BookingPage() {
 
                               {room.status === "dirty" && (
                                 <span className="text-sm font-medium text-amber-600">
-                                  Can don dep
+                                  {t("needsCleaning")}
                                 </span>
                               )}
                             </div>
@@ -507,23 +510,23 @@ export default function BookingPage() {
                 </svg>
               </div>
               <h3 className="text-center text-base font-bold text-gray-900 mb-2">
-                Phong co dat truoc sap toi!
+                {t("reserveWarningTitle")}
               </h3>
               <div className="rounded-xl bg-red-50 border border-red-200 p-3 mb-4">
                 <p className="text-sm text-red-700">
-                  <strong>{reserveWarning.room.future_guest}</strong> da dat phong {reserveWarning.room.room_number} vao{" "}
+                  <strong>{reserveWarning.room.future_guest}</strong> {t("reserveWarningMessage").replace("{room}", reserveWarning.room.room_number)}{" "}
                   <strong>{reserveWarning.room.future_check_in ? formatDateTime(reserveWarning.room.future_check_in) : ""}</strong>
                 </p>
               </div>
               <p className="text-sm text-gray-500 text-center mb-5">
-                Ban co chac muon tiep tuc nhan phong nay?
+                {t("reserveWarningConfirm")}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setReserveWarning(null)}
                   className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Huy
+                  {t("cancel")}
                 </button>
                 <button
                   onClick={() => {
@@ -537,7 +540,7 @@ export default function BookingPage() {
                   }}
                   className="flex-1 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-200 transition-all hover:shadow-xl"
                 >
-                  Tiep tuc
+                  {t("continue")}
                 </button>
               </div>
             </div>
@@ -623,6 +626,7 @@ function RoomActionMenu({
   onChangeRoom: () => void;
   onMarkClean: () => void;
 }) {
+  const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: anchorX, y: anchorY });
 
@@ -664,7 +668,7 @@ function RoomActionMenu({
 
   if (room.status === "available") {
     items.push({
-      label: "Nhan phong nhanh",
+      label: t("actionQuickCheckin"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
@@ -673,7 +677,7 @@ function RoomActionMenu({
       onClick: onQuickCheckin,
     });
     items.push({
-      label: "Nhan phong (nhap thong tin)",
+      label: t("actionCheckinWithInfo"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
@@ -683,7 +687,7 @@ function RoomActionMenu({
       onClick: onCheckin,
     });
     items.push({
-      label: "Dat phong truoc",
+      label: t("actionReserve"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
@@ -695,7 +699,7 @@ function RoomActionMenu({
 
   if (room.status === "occupied") {
     items.push({
-      label: "Xem chi tiet",
+      label: t("actionViewDetail"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
@@ -705,7 +709,7 @@ function RoomActionMenu({
       onClick: onViewDetail,
     });
     items.push({
-      label: "Them dich vu",
+      label: t("actionAddService"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -714,7 +718,7 @@ function RoomActionMenu({
       onClick: onAddService,
     });
     items.push({
-      label: "Doi phong",
+      label: t("actionChangeRoom"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H4.598a.75.75 0 00-.75.75v3.634a.75.75 0 001.5 0v-2.033l.312.311a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm-1.06-7.666a.75.75 0 01.744.648l.007.102v2.033l-.312-.311a7 7 0 00-11.712 3.138.75.75 0 001.449.39 5.5 5.5 0 019.201-2.466l.312.311H11.48a.75.75 0 100 1.5h3.634a.75.75 0 00.75-.75V4.358a.75.75 0 00-.75-.75h-.001z" clipRule="evenodd" />
@@ -723,7 +727,7 @@ function RoomActionMenu({
       onClick: onChangeRoom,
     });
     items.push({
-      label: "Tra phong",
+      label: t("actionCheckout"),
       icon: (
         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clipRule="evenodd" />
@@ -737,7 +741,7 @@ function RoomActionMenu({
 
   if (room.status === "dirty") {
     items.push({
-      label: "Don phong xong",
+      label: t("actionMarkClean"),
       icon: <SparklesIcon className="h-4 w-4" />,
       onClick: onMarkClean,
     });
@@ -757,7 +761,7 @@ function RoomActionMenu({
             <span className="text-base font-extrabold text-gray-900">{room.room_number}</span>
             <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${cfg.badge}`}>
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-              {cfg.label}
+              {t(cfg.label as TranslationKeys)}
             </span>
           </div>
           {room.status === "occupied" && room.current_guest && (
@@ -805,58 +809,28 @@ function CheckinModal({
 }) {
   const isReserve = mode === "reserve";
   const supabase = createClient();
-  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
   const [form, setForm] = useState({
     guest_name: "",
     guest_id_number: "",
     guest_count: "1",
-    pricing_type: "" as "" | "hourly" | "overnight" | "daily",
     notes: "",
     expected_check_in: "",
   });
-
-  useEffect(() => {
-    supabase
-      .from("v_room_occupancy")
-      .select("*")
-      .eq("room_id", room.room_id)
-      .single()
-      .then(() => {
-        supabase
-          .from("rooms")
-          .select("room_category_id")
-          .eq("id", room.room_id)
-          .single()
-          .then(({ data: roomData }) => {
-            if (roomData?.room_category_id) {
-              supabase
-                .from("pricing_rules")
-                .select("*")
-                .eq("room_category_id", roomData.room_category_id)
-                .eq("is_active", true)
-                .then(({ data }) => setPricingRules(data ?? []));
-            }
-          });
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.guest_name.trim()) return;
     if (isReserve && !form.expected_check_in) {
-      alert("Vui long chon ngay nhan phong du kien.");
+      alert(t("reserveValidationDate"));
       return;
     }
     if (isReserve && form.expected_check_in && new Date(form.expected_check_in) <= new Date()) {
-      alert("Ngay nhan phong du kien phai trong tuong lai.");
+      alert(t("reserveValidationFuture"));
       return;
     }
     setSaving(true);
-
-    const selectedRule = pricingRules.find(
-      (r) => r.pricing_type === form.pricing_type,
-    );
 
     const checkInAt = isReserve && form.expected_check_in
       ? new Date(form.expected_check_in).toISOString()
@@ -868,9 +842,8 @@ function CheckinModal({
       guest_name: form.guest_name.trim(),
       guest_id_number: form.guest_id_number.trim() || null,
       guest_count: Number(form.guest_count) || 1,
-      pricing_type: form.pricing_type || null,
       notes: form.notes.trim() || null,
-      room_charge: selectedRule?.price ?? 0,
+      room_charge: 0,
       status: isReserve ? "reserved" : "checked_in",
       check_in_at: checkInAt,
     });
@@ -885,22 +858,10 @@ function CheckinModal({
       onSuccess();
     } else {
       console.error("Booking insert error:", error);
-      alert("Loi: " + error.message);
+      alert(t("errorPrefix") + error.message);
       setSaving(false);
     }
   }
-
-  const pricingTypeLabels: Record<string, string> = {
-    hourly: "Theo gio",
-    overnight: "Qua dem",
-    daily: "Theo ngay",
-  };
-
-  const pricingTypeIcons: Record<string, string> = {
-    hourly: "clock",
-    overnight: "moon",
-    daily: "sun",
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -912,7 +873,7 @@ function CheckinModal({
               <BedIcon className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-lg font-bold">{isReserve ? "Dat truoc" : "Nhan phong"} {room.room_number}</h3>
+              <h3 className="text-lg font-bold">{isReserve ? t("reserve") : t("checkin")} {room.room_number}</h3>
               <p className="text-sm text-white/80">{room.category_name}</p>
             </div>
           </div>
@@ -926,7 +887,7 @@ function CheckinModal({
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <p className="text-sm text-amber-700">
-                Dat truoc: <strong>{room.future_guest}</strong> vao{" "}
+                {t("reserveWarningBanner")} <strong>{room.future_guest}</strong> {t("reserveWarningBannerAt")}{" "}
                 {room.future_check_in ? formatDateTime(room.future_check_in) : ""}
               </p>
             </div>
@@ -935,7 +896,7 @@ function CheckinModal({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Ten khach *
+                {t("guestNameLabel")}
               </label>
               <input
                 type="text"
@@ -944,14 +905,14 @@ function CheckinModal({
                 required
                 autoFocus
                 className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                placeholder="Nhap ten khach"
+                placeholder={t("guestNamePlaceholder")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  CMND/CCCD
+                  {t("idNumberLabel")}
                 </label>
                 <input
                   type="text"
@@ -962,7 +923,7 @@ function CheckinModal({
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  So khach
+                  {t("guestCountLabel")}
                 </label>
                 <input
                   type="number"
@@ -974,45 +935,10 @@ function CheckinModal({
               </div>
             </div>
 
-            {/* Pricing type */}
-            {pricingRules.length > 0 && (
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Hinh thuc
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {pricingRules.map((rule) => (
-                    <button
-                      key={rule.id}
-                      type="button"
-                      onClick={() => setForm({ ...form, pricing_type: rule.pricing_type })}
-                      className={`rounded-xl border-2 px-3 py-3 text-center transition-all ${
-                        form.pricing_type === rule.pricing_type
-                          ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="mb-1 text-lg">
-                        {pricingTypeIcons[rule.pricing_type] === "clock" && "⏰"}
-                        {pricingTypeIcons[rule.pricing_type] === "moon" && "🌙"}
-                        {pricingTypeIcons[rule.pricing_type] === "sun" && "☀️"}
-                      </div>
-                      <div className={`text-xs font-semibold ${form.pricing_type === rule.pricing_type ? "text-emerald-700" : "text-gray-700"}`}>
-                        {pricingTypeLabels[rule.pricing_type]}
-                      </div>
-                      <div className="mt-0.5 text-xs text-gray-500">
-                        {formatPrice(rule.price)}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {isReserve && (
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Ngay nhan phong du kien *
+                  {t("expectedCheckinLabel")}
                 </label>
                 <input
                   type="datetime-local"
@@ -1026,7 +952,7 @@ function CheckinModal({
 
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                Ghi chu
+                {t("notes")}
               </label>
               <textarea
                 value={form.notes}
@@ -1042,14 +968,14 @@ function CheckinModal({
                 onClick={onClose}
                 className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
               >
-                Huy
+                {t("cancel")}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className={`rounded-xl bg-gradient-to-r px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-xl disabled:opacity-50 ${isReserve ? "from-violet-500 to-purple-600 shadow-violet-200 hover:shadow-violet-200" : "from-emerald-500 to-green-600 shadow-emerald-200 hover:shadow-emerald-200"}`}
               >
-                {saving ? "Dang xu ly..." : isReserve ? "Dat phong" : "Nhan phong"}
+                {saving ? t("processing") : isReserve ? t("reserveBooking") : t("checkin")}
               </button>
             </div>
           </form>
@@ -1078,8 +1004,66 @@ function DetailModal({
   const supabase = createClient();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [services, setServices] = useState<BookingService[]>([]);
+  const [pricingRules, setPricingRules] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
+  const { t } = useI18n();
+  const [, setTick] = useState(0);
+
+  // Re-render every 60s to update auto-calculated price
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-calculate pricing based on duration
+  function calcAutoPrice(checkInAt: string, rules: PricingRule[]) {
+    const now = new Date();
+    const checkIn = new Date(checkInAt);
+    const diffMs = now.getTime() - checkIn.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    const hourlyRule = rules.find((r) => r.pricing_type === "hourly");
+    const overnightRule = rules.find((r) => r.pricing_type === "overnight");
+    const dailyRule = rules.find((r) => r.pricing_type === "daily");
+
+    // Start with hourly pricing
+    let bestType: "hourly" | "overnight" | "daily" = "hourly";
+    let bestPrice = 0;
+
+    if (hourlyRule) {
+      const minHours = hourlyRule.min_hours ?? 1;
+      const baseHours = Math.max(minHours, Math.ceil(diffHours));
+      bestPrice = hourlyRule.price;
+      if (diffHours > minHours && hourlyRule.extra_hour_price) {
+        const extraHours = Math.ceil(diffHours) - minHours;
+        bestPrice = hourlyRule.price + extraHours * hourlyRule.extra_hour_price;
+      }
+    }
+
+    // Check if overnight is cheaper
+    if (overnightRule && overnightRule.price < bestPrice) {
+      bestType = "overnight";
+      bestPrice = overnightRule.price;
+    }
+
+    // Check if daily is cheaper (for stays >= ~24h or when daily is cheaper)
+    if (dailyRule) {
+      const days = Math.max(1, Math.ceil(diffHours / 24));
+      const dailyTotal = dailyRule.price * days;
+      if (dailyTotal < bestPrice || !hourlyRule) {
+        bestType = "daily";
+        bestPrice = dailyTotal;
+      }
+    }
+
+    // Fallback: if no rules, price stays 0
+    if (!hourlyRule && !overnightRule && !dailyRule) {
+      return { type: null as "hourly" | "overnight" | "daily" | null, price: 0 };
+    }
+
+    return { type: bestType, price: bestPrice };
+  }
 
   useEffect(() => {
     async function fetchBooking() {
@@ -1094,28 +1078,54 @@ function DetailModal({
 
       if (data) {
         setBooking(data);
-        const { data: svcData } = await supabase
-          .from("booking_services")
-          .select("*")
-          .eq("booking_id", data.id)
-          .order("created_at");
-        setServices(svcData ?? []);
+        const [svcRes, roomRes] = await Promise.all([
+          supabase
+            .from("booking_services")
+            .select("*")
+            .eq("booking_id", data.id)
+            .order("created_at"),
+          supabase
+            .from("rooms")
+            .select("room_category_id")
+            .eq("id", room.room_id)
+            .single(),
+        ]);
+        setServices(svcRes.data ?? []);
+
+        if (roomRes.data?.room_category_id) {
+          const { data: rules } = await supabase
+            .from("pricing_rules")
+            .select("*")
+            .eq("room_category_id", roomRes.data.room_category_id)
+            .eq("is_active", true);
+          setPricingRules(rules ?? []);
+        }
       }
       setLoading(false);
     }
     fetchBooking();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-calculate room charge live
+  const autoCalc = booking ? calcAutoPrice(booking.check_in_at, pricingRules) : null;
+
   async function handleCheckout() {
     if (!booking) return;
-    if (!confirm("Xac nhan tra phong " + room.room_number + "?")) return;
+    if (!confirm(t("confirmCheckout") + " " + room.room_number + "?")) return;
     setCheckingOut(true);
+
+    const finalCalc = calcAutoPrice(booking.check_in_at, pricingRules);
+    const finalRoomCharge = finalCalc.price;
+    const totalServices = services.reduce((sum, s) => sum + s.total_price, 0);
 
     await supabase
       .from("bookings")
       .update({
         status: "checked_out",
         check_out_at: new Date().toISOString(),
+        pricing_type: finalCalc.type,
+        room_charge: finalRoomCharge,
+        total_amount: finalRoomCharge + totalServices - booking.discount,
       })
       .eq("id", booking.id);
 
@@ -1133,7 +1143,7 @@ function DetailModal({
         <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
           <div className="flex items-center gap-3">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-            <p className="text-sm text-gray-500">Dang tai...</p>
+            <p className="text-sm text-gray-500">{t("loading")}</p>
           </div>
         </div>
       </div>
@@ -1144,12 +1154,12 @@ function DetailModal({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-          <p className="text-sm text-gray-500">Khong tim thay thong tin dat phong.</p>
+          <p className="text-sm text-gray-500">{t("noBookingFound")}</p>
           <button
             onClick={onClose}
             className="mt-4 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
           >
-            Dong
+            {t("close")}
           </button>
         </div>
       </div>
@@ -1157,13 +1167,15 @@ function DetailModal({
   }
 
   const pricingTypeLabels: Record<string, string> = {
-    hourly: "Theo gio",
-    overnight: "Qua dem",
-    daily: "Theo ngay",
+    hourly: t("pricingHourly"),
+    overnight: t("pricingOvernight"),
+    daily: t("pricingDaily"),
   };
 
+  const displayRoomCharge = autoCalc?.price ?? booking.room_charge;
+  const displayPricingType = autoCalc?.type ?? booking.pricing_type;
   const totalServices = services.reduce((sum, s) => sum + s.total_price, 0);
-  const grandTotal = booking.room_charge + totalServices - booking.discount;
+  const grandTotal = displayRoomCharge + totalServices - booking.discount;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -1176,7 +1188,7 @@ function DetailModal({
                 {room.room_number}
               </div>
               <div>
-                <h3 className="text-lg font-bold">Phong {room.room_number}</h3>
+                <h3 className="text-lg font-bold">{t("roomDetail")} {room.room_number}</h3>
                 <p className="text-sm text-white/80">{room.category_name}</p>
               </div>
             </div>
@@ -1203,35 +1215,35 @@ function DetailModal({
             <div className="rounded-xl bg-gray-50 p-3">
               <div className="flex items-center gap-1.5 mb-1">
                 <UserIcon className="h-3.5 w-3.5 text-gray-400" />
-                <p className="text-xs font-medium text-gray-400">Khach</p>
+                <p className="text-xs font-medium text-gray-400">{t("guestLabel")}</p>
               </div>
               <p className="text-sm font-bold text-gray-900">{booking.guest_name}</p>
             </div>
             {booking.guest_id_number && (
               <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-medium text-gray-400 mb-1">CMND/CCCD</p>
+                <p className="text-xs font-medium text-gray-400 mb-1">{t("idLabel")}</p>
                 <p className="text-sm font-semibold text-gray-700">{booking.guest_id_number}</p>
               </div>
             )}
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-xs font-medium text-gray-400 mb-1">Nhan phong</p>
+              <p className="text-xs font-medium text-gray-400 mb-1">{t("checkinLabel")}</p>
               <p className="text-sm font-semibold text-gray-700">{formatDateTime(booking.check_in_at)}</p>
             </div>
-            {booking.pricing_type && (
+            {displayPricingType && (
               <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-xs font-medium text-gray-400 mb-1">Hinh thuc</p>
-                <p className="text-sm font-semibold text-gray-700">{pricingTypeLabels[booking.pricing_type]}</p>
+                <p className="text-xs font-medium text-gray-400 mb-1">{t("pricingTypeLabel")}</p>
+                <p className="text-sm font-semibold text-gray-700">{pricingTypeLabels[displayPricingType]}</p>
               </div>
             )}
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="text-xs font-medium text-gray-400 mb-1">So khach</p>
+              <p className="text-xs font-medium text-gray-400 mb-1">{t("guestCountLabel")}</p>
               <p className="text-sm font-semibold text-gray-700">{booking.guest_count}</p>
             </div>
           </div>
 
           {booking.notes && (
             <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
-              <p className="text-xs font-medium text-blue-400 mb-1">Ghi chu</p>
+              <p className="text-xs font-medium text-blue-400 mb-1">{t("notes")}</p>
               <p className="text-sm text-blue-700">{booking.notes}</p>
             </div>
           )}
@@ -1240,7 +1252,7 @@ function DetailModal({
           {services.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
-                Dich vu su dung
+                {t("servicesUsed")}
               </p>
               <div className="rounded-xl border border-gray-200 overflow-hidden">
                 {services.map((svc, i) => (
@@ -1266,23 +1278,23 @@ function DetailModal({
           {/* Totals */}
           <div className="rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Tien phong</span>
-              <span className="font-medium text-gray-700">{formatPrice(booking.room_charge)}</span>
+              <span className="text-gray-500">{t("roomChargeLabel")}</span>
+              <span className="font-medium text-gray-700">{formatPrice(displayRoomCharge)}</span>
             </div>
             {totalServices > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Dich vu</span>
+                <span className="text-gray-500">{t("serviceLabel")}</span>
                 <span className="font-medium text-gray-700">{formatPrice(totalServices)}</span>
               </div>
             )}
             {booking.discount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Giam gia</span>
+                <span className="text-gray-500">{t("discountLabel")}</span>
                 <span className="font-semibold text-red-500">-{formatPrice(booking.discount)}</span>
               </div>
             )}
             <div className="flex justify-between border-t border-gray-300/50 pt-2">
-              <span className="text-sm font-bold text-gray-900">Tong cong</span>
+              <span className="text-sm font-bold text-gray-900">{t("totalLabel")}</span>
               <span className="text-lg font-extrabold text-gray-900">{formatPrice(grandTotal)}</span>
             </div>
           </div>
@@ -1294,7 +1306,7 @@ function DetailModal({
                 <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               <p className="text-sm text-amber-700">
-                Dat truoc: <strong>{room.future_guest}</strong> vao{" "}
+                {t("reserveWarningBanner")} <strong>{room.future_guest}</strong> {t("reserveWarningBannerAt")}{" "}
                 {room.future_check_in ? formatDateTime(room.future_check_in) : ""}
               </p>
             </div>
@@ -1311,7 +1323,7 @@ function DetailModal({
               <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
-              Dich vu
+              {t("serviceLabel")}
             </button>
             <button
               onClick={() => onChangeRoom(booking.id)}
@@ -1320,7 +1332,7 @@ function DetailModal({
               <svg className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H4.598a.75.75 0 00-.75.75v3.634a.75.75 0 001.5 0v-2.033l.312.311a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm-1.06-7.666a.75.75 0 01.744.648l.007.102v2.033l-.312-.311a7 7 0 00-11.712 3.138.75.75 0 001.449.39 5.5 5.5 0 019.201-2.466l.312.311H11.48a.75.75 0 100 1.5h3.634a.75.75 0 00.75-.75V4.358a.75.75 0 00-.75-.75h-.001z" clipRule="evenodd" />
               </svg>
-              Doi phong
+              {t("actionChangeRoom")}
             </button>
             <div className="flex-1" />
             <button
@@ -1328,7 +1340,7 @@ function DetailModal({
               disabled={checkingOut}
               className="rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-200 transition-all hover:shadow-xl hover:shadow-red-200 disabled:opacity-50"
             >
-              {checkingOut ? "Dang xu ly..." : "Tra phong"}
+              {checkingOut ? t("processing") : t("actionCheckout")}
             </button>
           </div>
         </div>
@@ -1353,6 +1365,7 @@ function AddServiceModal({
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
   const [selected, setSelected] = useState<
     { service: Service; quantity: number }[]
   >([]);
@@ -1433,7 +1446,7 @@ function AddServiceModal({
 
       onSuccess();
     } else {
-      alert("Loi: " + error.message);
+      alert(t("errorPrefix") + error.message);
       setSaving(false);
     }
   }
@@ -1447,20 +1460,20 @@ function AddServiceModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 z-10 rounded-t-2xl bg-gradient-to-r from-violet-500 to-purple-600 px-6 py-5 text-white">
-          <h3 className="text-lg font-bold">Them dich vu</h3>
-          <p className="text-sm text-white/80">Chon dich vu va so luong</p>
+          <h3 className="text-lg font-bold">{t("addServiceTitle")}</h3>
+          <p className="text-sm text-white/80">{t("addServiceSubtitle")}</p>
         </div>
 
         <div className="px-6 py-4">
           {loading ? (
             <div className="flex items-center gap-3 py-8 justify-center">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
-              <p className="text-sm text-gray-500">Dang tai...</p>
+              <p className="text-sm text-gray-500">{t("loading")}</p>
             </div>
           ) : services.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500">
-                Chua co dich vu nao. Vui long them dich vu trong phan Cai dat.
+                {t("noServicesYet")}
               </p>
             </div>
           ) : (
@@ -1535,7 +1548,7 @@ function AddServiceModal({
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 mr-1">
                   {selected.length}
                 </span>
-                dich vu
+                {t("serviceCount")}
               </span>
               <span className="text-base font-bold text-gray-900">{formatPrice(total)}</span>
             </div>
@@ -1545,14 +1558,14 @@ function AddServiceModal({
               onClick={onClose}
               className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
             >
-              Huy
+              {t("cancel")}
             </button>
             <button
               onClick={handleSubmit}
               disabled={saving || selected.length === 0}
               className="rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-200 transition-all hover:shadow-xl hover:shadow-violet-200 disabled:opacity-50"
             >
-              {saving ? "Dang luu..." : "Xac nhan"}
+              {saving ? t("saving") : t("confirm")}
             </button>
           </div>
         </div>
@@ -1580,6 +1593,7 @@ function ChangeRoomModal({
   const [selectedRoom, setSelectedRoom] = useState<string>("");
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     async function fetchData() {
@@ -1641,7 +1655,7 @@ function ChangeRoomModal({
                 <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H4.598a.75.75 0 00-.75.75v3.634a.75.75 0 001.5 0v-2.033l.312.311a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm-1.06-7.666a.75.75 0 01.744.648l.007.102v2.033l-.312-.311a7 7 0 00-11.712 3.138.75.75 0 001.449.39 5.5 5.5 0 019.201-2.466l.312.311H11.48a.75.75 0 100 1.5h3.634a.75.75 0 00.75-.75V4.358a.75.75 0 00-.75-.75h-.001z" clipRule="evenodd" />
               </svg>
             </div>
-            <h3 className="text-lg font-bold">Doi phong</h3>
+            <h3 className="text-lg font-bold">{t("changeRoomTitle")}</h3>
           </div>
         </div>
 
@@ -1649,24 +1663,24 @@ function ChangeRoomModal({
           {loading ? (
             <div className="flex items-center gap-3 py-8 justify-center">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-600 border-t-transparent" />
-              <p className="text-sm text-gray-500">Dang tai...</p>
+              <p className="text-sm text-gray-500">{t("loading")}</p>
             </div>
           ) : availableRooms.length === 0 ? (
             <div className="text-center py-8">
               <BedIcon className="mx-auto h-10 w-10 text-gray-300" />
-              <p className="mt-3 text-sm text-gray-500">Khong co phong trong de doi.</p>
+              <p className="mt-3 text-sm text-gray-500">{t("noAvailableRooms")}</p>
               <button
                 onClick={onClose}
                 className="mt-4 rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700"
               >
-                Dong
+                {t("close")}
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Chon phong moi
+                  {t("selectNewRoom")}
                 </label>
                 <select
                   value={selectedRoom}
@@ -1674,7 +1688,7 @@ function ChangeRoomModal({
                   required
                   className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                 >
-                  <option value="">-- Chon phong --</option>
+                  <option value="">{t("selectRoomPlaceholder")}</option>
                   {availableRooms.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.room_number} - {r.floors?.name} - {r.room_categories?.name}
@@ -1684,14 +1698,14 @@ function ChangeRoomModal({
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                  Ly do doi phong
+                  {t("changeRoomReason")}
                 </label>
                 <input
                   type="text"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
-                  placeholder="VD: Khach yeu cau, su co ky thuat..."
+                  placeholder={t("changeRoomReasonPlaceholder")}
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -1700,14 +1714,14 @@ function ChangeRoomModal({
                   onClick={onClose}
                   className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Huy
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !selectedRoom}
                   className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-200 transition-all hover:shadow-xl hover:shadow-orange-200 disabled:opacity-50"
                 >
-                  {saving ? "Dang xu ly..." : "Doi phong"}
+                  {saving ? t("processing") : t("changeRoomTitle")}
                 </button>
               </div>
             </form>

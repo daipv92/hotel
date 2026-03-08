@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { Room, Floor, RoomCategory } from "@/types/database";
 
 export default function RoomsPage() {
   const { hotelId } = useHotel();
   const supabase = createClient();
+  const { t } = useI18n();
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -67,7 +69,7 @@ export default function RoomsPage() {
     const floorNum = Number(newFloorNumber);
     await supabase.from("floors").insert({
       floor_number: floorNum,
-      name: newFloorName.trim() || `Tầng ${floorNum}`,
+      name: newFloorName.trim() || `${t("floorLabel")} ${floorNum}`,
       hotel_id: hotelId,
       sort_order: floorNum,
     });
@@ -78,7 +80,7 @@ export default function RoomsPage() {
   }
 
   async function handleDeleteFloor(id: string) {
-    if (!confirm("Xóa tầng này? Các phòng thuộc tầng sẽ bị ảnh hưởng."))
+    if (!confirm(t("deleteFloorConfirm")))
       return;
     await supabase.from("floors").delete().eq("id", id);
     fetchAll();
@@ -123,13 +125,13 @@ export default function RoomsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Bạn có chắc muốn xóa phòng này?")) return;
+    if (!confirm(t("deleteRoomConfirm"))) return;
     await supabase.from("rooms").delete().eq("id", id);
     fetchAll();
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Đang tải...</p>;
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
   return (
@@ -137,7 +139,7 @@ export default function RoomsPage() {
       {/* Floor management */}
       <div className="mb-6">
         <h2 className="mb-3 text-base font-semibold text-gray-900">
-          Quản lý tầng
+          {t("floorManagement")}
         </h2>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <form onSubmit={handleAddFloor} className="mb-3 flex gap-2">
@@ -145,7 +147,7 @@ export default function RoomsPage() {
               type="number"
               value={newFloorNumber}
               onChange={(e) => setNewFloorNumber(e.target.value)}
-              placeholder="Số tầng"
+              placeholder={t("floorNumberPlaceholder")}
               min="0"
               className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
@@ -153,7 +155,7 @@ export default function RoomsPage() {
               type="text"
               value={newFloorName}
               onChange={(e) => setNewFloorName(e.target.value)}
-              placeholder="Tên tầng (tùy chọn)"
+              placeholder={t("floorNamePlaceholder")}
               className="w-48 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
             <button
@@ -161,11 +163,11 @@ export default function RoomsPage() {
               disabled={addingFloor || !newFloorNumber.trim()}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
-              Thêm tầng
+              {t("addFloor")}
             </button>
           </form>
           {floors.length === 0 ? (
-            <p className="text-sm text-gray-500">Chưa có tầng nào.</p>
+            <p className="text-sm text-gray-500">{t("noFloorsYet")}</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {floors.map((floor) => (
@@ -173,11 +175,11 @@ export default function RoomsPage() {
                   key={floor.id}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700"
                 >
-                  {floor.name} (Tầng {floor.floor_number})
+                  {floor.name} ({t("floorLabel")} {floor.floor_number})
                   <button
                     onClick={() => handleDeleteFloor(floor.id)}
                     className="ml-1 text-gray-400 hover:text-red-500"
-                    title="Xóa tầng"
+                    title={t("deleteFloor")}
                   >
                     &times;
                   </button>
@@ -191,20 +193,19 @@ export default function RoomsPage() {
       {/* Room management */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900">
-          Danh sách phòng
+          {t("roomList")}
         </h2>
         <button
           onClick={openAdd}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Thêm phòng
+          {t("addRoom")}
         </button>
       </div>
 
       {rooms.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          Chưa có phòng nào. Hãy thêm tầng và loại phòng trước, sau đó thêm
-          phòng.
+          {t("noRoomsYet")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -212,19 +213,19 @@ export default function RoomsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Số phòng
+                  {t("thRoomNumber")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Tầng
+                  {t("thFloor")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Loại phòng
+                  {t("thRoomType")}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Trạng thái
+                  {t("thStatus")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Thao tác
+                  {t("actions")}
                 </th>
               </tr>
             </thead>
@@ -251,10 +252,10 @@ export default function RoomsPage() {
                       }`}
                     >
                       {room.status === "available"
-                        ? "Trống"
+                        ? t("roomStatusAvailable")
                         : room.status === "occupied"
-                          ? "Đang sử dụng"
-                          : "Cần dọn"}
+                          ? t("roomStatusOccupied")
+                          : t("roomStatusDirty")}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -262,13 +263,13 @@ export default function RoomsPage() {
                       onClick={() => openEdit(room)}
                       className="mr-2 text-sm text-blue-600 hover:text-blue-800"
                     >
-                      Sửa
+                      {t("edit")}
                     </button>
                     <button
                       onClick={() => handleDelete(room.id)}
                       className="text-sm text-red-600 hover:text-red-800"
                     >
-                      Xóa
+                      {t("delete")}
                     </button>
                   </td>
                 </tr>
@@ -282,12 +283,12 @@ export default function RoomsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">
-              {editingId ? "Sửa phòng" : "Thêm phòng"}
+              {editingId ? t("editRoom") : t("addRoom")}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Số phòng
+                  {t("roomNumberLabel")}
                 </label>
                 <input
                   type="text"
@@ -297,12 +298,12 @@ export default function RoomsPage() {
                   }
                   required
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="VD: 301"
+                  placeholder={t("roomNumberPlaceholder")}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Tầng
+                  {t("floorLabel")}
                 </label>
                 <select
                   value={form.floor_id}
@@ -312,17 +313,17 @@ export default function RoomsPage() {
                   required
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">-- Chọn tầng --</option>
+                  <option value="">{t("selectFloorPlaceholder")}</option>
                   {floors.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} (Tầng {f.floor_number})
+                      {f.name} ({t("floorLabel")} {f.floor_number})
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Loại phòng
+                  {t("roomTypeLabel")}
                 </label>
                 <select
                   value={form.room_category_id}
@@ -332,7 +333,7 @@ export default function RoomsPage() {
                   required
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 >
-                  <option value="">-- Chọn loại phòng --</option>
+                  <option value="">{t("selectRoomTypePlaceholder")}</option>
                   {categories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -346,14 +347,14 @@ export default function RoomsPage() {
                   onClick={() => setShowModal(false)}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Hủy
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? "Đang lưu..." : "Lưu"}
+                  {saving ? t("saving") : t("save")}
                 </button>
               </div>
             </form>

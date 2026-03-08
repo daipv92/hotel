@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { RoomCategory } from "@/types/database";
 
 function formatPrice(price: number) {
@@ -12,6 +13,7 @@ function formatPrice(price: number) {
 export default function CategoriesPage() {
   const { hotelId } = useHotel();
   const supabase = createClient();
+  const { t } = useI18n();
 
   const [categories, setCategories] = useState<RoomCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,30 +73,30 @@ export default function CategoriesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Bạn có chắc muốn xóa loại phòng này?")) return;
+    if (!confirm(t("deleteCategoryConfirm"))) return;
     await supabase.from("room_categories").delete().eq("id", id);
     fetchCategories();
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Đang tải...</p>;
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
   return (
     <>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900">Loại phòng</h2>
+        <h2 className="text-base font-semibold text-gray-900">{t("categoriesTitle")}</h2>
         <button
           onClick={openAdd}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Thêm loại phòng
+          {t("addCategory")}
         </button>
       </div>
 
       {categories.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          Chưa có loại phòng nào. Bấm &quot;Thêm loại phòng&quot; để bắt đầu.
+          {t("noCategoriesYet")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -102,13 +104,13 @@ export default function CategoriesPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Tên loại phòng
+                  {t("thCategoryName")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Giá cơ bản
+                  {t("thBasePrice")}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Thao tác
+                  {t("actions")}
                 </th>
               </tr>
             </thead>
@@ -126,13 +128,13 @@ export default function CategoriesPage() {
                       onClick={() => openEdit(cat)}
                       className="mr-2 text-sm text-blue-600 hover:text-blue-800"
                     >
-                      Sửa
+                      {t("edit")}
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id)}
                       className="text-sm text-red-600 hover:text-red-800"
                     >
-                      Xóa
+                      {t("delete")}
                     </button>
                   </td>
                 </tr>
@@ -146,12 +148,12 @@ export default function CategoriesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">
-              {editingId ? "Sửa loại phòng" : "Thêm loại phòng"}
+              {editingId ? t("editCategory") : t("addCategory")}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Tên loại phòng
+                  {t("categoryNameLabel")}
                 </label>
                 <input
                   type="text"
@@ -159,12 +161,12 @@ export default function CategoriesPage() {
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   required
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="VD: Standard, VIP, Deluxe..."
+                  placeholder={t("categoryNamePlaceholder")}
                 />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Giá cơ bản (VND)
+                  {t("basePriceLabel")}
                 </label>
                 <input
                   type="number"
@@ -175,7 +177,7 @@ export default function CategoriesPage() {
                   required
                   min="0"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="200000"
+                  placeholder={t("basePricePlaceholder")}
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -184,14 +186,14 @@ export default function CategoriesPage() {
                   onClick={() => setShowModal(false)}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Hủy
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? "Đang lưu..." : "Lưu"}
+                  {saving ? t("saving") : t("save")}
                 </button>
               </div>
             </form>

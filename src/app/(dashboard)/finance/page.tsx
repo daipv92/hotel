@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { Transaction, ExpenseCategory } from "@/types/database";
 
 function formatPrice(price: number) {
@@ -41,12 +42,13 @@ function getDefaultDateRange() {
 
 export default function FinancePage() {
   const [tab, setTab] = useState<TabType>("income");
+  const { t } = useI18n();
 
   return (
     <>
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-gray-900">
-          Quan ly thu chi
+          {t("financeTitle")}
         </h2>
       </div>
 
@@ -60,7 +62,7 @@ export default function FinancePage() {
               : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
           }`}
         >
-          Thu (Doanh thu)
+          {t("financeIncomeTab")}
         </button>
         <button
           onClick={() => setTab("expense")}
@@ -70,7 +72,7 @@ export default function FinancePage() {
               : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
           }`}
         >
-          Chi (Chi phi)
+          {t("financeExpenseTab")}
         </button>
       </div>
 
@@ -100,6 +102,7 @@ function IncomeSection() {
     }[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
 
   const fetchIncome = useCallback(async () => {
     setLoading(true);
@@ -142,7 +145,7 @@ function IncomeSection() {
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">
-            Tu ngay
+            {t("dateFrom")}
           </label>
           <input
             type="date"
@@ -153,7 +156,7 @@ function IncomeSection() {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">
-            Den ngay
+            {t("dateTo")}
           </label>
           <input
             type="date"
@@ -167,26 +170,26 @@ function IncomeSection() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Tien phong</p>
+          <p className="text-xs text-gray-500">{t("incomeRoomCharge")}</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">
             {formatPrice(totalRoom)}
           </p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Dich vu</p>
+          <p className="text-xs text-gray-500">{t("incomeServices")}</p>
           <p className="mt-1 text-lg font-semibold text-gray-900">
             {formatPrice(totalService)}
           </p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
-          <p className="text-xs text-gray-500">Giam gia</p>
+          <p className="text-xs text-gray-500">{t("incomeDiscount")}</p>
           <p className="mt-1 text-lg font-semibold text-red-600">
             {totalDiscount > 0 ? "-" : ""}
             {formatPrice(totalDiscount)}
           </p>
         </div>
         <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <p className="text-xs text-green-600">Tong doanh thu</p>
+          <p className="text-xs text-green-600">{t("incomeTotal")}</p>
           <p className="mt-1 text-lg font-bold text-green-700">
             {formatPrice(totalIncome)}
           </p>
@@ -196,11 +199,11 @@ function IncomeSection() {
       {/* Booking list */}
       {loading ? (
         <div className="flex items-center justify-center py-10">
-          <p className="text-sm text-gray-500">Dang tai...</p>
+          <p className="text-sm text-gray-500">{t("loading")}</p>
         </div>
       ) : bookings.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          Khong co doanh thu trong khoang thoi gian nay.
+          {t("noIncomeInPeriod")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -209,22 +212,22 @@ function IncomeSection() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Khach
+                    {t("thGuest")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Phong
+                    {t("thRoom")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Tra phong
+                    {t("thRoomCheckout")}
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">
-                    Tien phong
+                    {t("thRoomCharge")}
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">
-                    Dich vu
+                    {t("thServices")}
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">
-                    Tong
+                    {t("thAmount")}
                   </th>
                 </tr>
               </thead>
@@ -299,6 +302,7 @@ function ExpenseSection() {
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const { t } = useI18n();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -333,7 +337,7 @@ function ExpenseSection() {
   // Group by category
   const byCategory = new Map<string, { name: string; total: number }>();
   for (const txn of transactions) {
-    const catName = txn.expense_categories?.name ?? "Khac";
+    const catName = txn.expense_categories?.name ?? t("uncategorized");
     const existing = byCategory.get(catName);
     if (existing) {
       existing.total += txn.amount;
@@ -343,7 +347,7 @@ function ExpenseSection() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Xoa khoan chi nay?")) return;
+    if (!confirm(t("deleteExpenseConfirm"))) return;
     await supabase.from("transactions").delete().eq("id", id);
     fetchData();
   }
@@ -354,7 +358,7 @@ function ExpenseSection() {
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">
-            Tu ngay
+            {t("dateFrom")}
           </label>
           <input
             type="date"
@@ -365,7 +369,7 @@ function ExpenseSection() {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">
-            Den ngay
+            {t("dateTo")}
           </label>
           <input
             type="date"
@@ -378,7 +382,7 @@ function ExpenseSection() {
           onClick={() => setShowAddModal(true)}
           className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
         >
-          + Them chi phi
+          {t("addExpenseButton")}
         </button>
       </div>
 
@@ -396,7 +400,7 @@ function ExpenseSection() {
           </div>
         ))}
         <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-xs text-red-600">Tong chi</p>
+          <p className="text-xs text-red-600">{t("expenseTotal")}</p>
           <p className="mt-1 text-lg font-bold text-red-700">
             {formatPrice(totalExpense)}
           </p>
@@ -406,11 +410,11 @@ function ExpenseSection() {
       {/* Expense list */}
       {loading ? (
         <div className="flex items-center justify-center py-10">
-          <p className="text-sm text-gray-500">Dang tai...</p>
+          <p className="text-sm text-gray-500">{t("loading")}</p>
         </div>
       ) : transactions.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          Khong co chi phi trong khoang thoi gian nay.
+          {t("noExpenseInPeriod")}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -419,19 +423,19 @@ function ExpenseSection() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Ngay
+                    {t("thDate")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Loai
+                    {t("thCategory")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-500">
-                    Mo ta
+                    {t("thDescription")}
                   </th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">
-                    So tien
+                    {t("thExpenseAmount")}
                   </th>
                   <th className="px-4 py-3 text-center font-medium text-gray-500">
-                    Xoa
+                    {t("thDelete")}
                   </th>
                 </tr>
               </thead>
@@ -446,7 +450,7 @@ function ExpenseSection() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                        {txn.expense_categories?.name ?? "Khac"}
+                        {txn.expense_categories?.name ?? t("uncategorized")}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-700">
@@ -459,7 +463,7 @@ function ExpenseSection() {
                       <button
                         onClick={() => handleDelete(txn.id)}
                         className="text-gray-400 hover:text-red-600 transition-colors"
-                        title="Xoa"
+                        title={t("thDelete")}
                       >
                         <svg
                           className="h-4 w-4"
@@ -486,7 +490,7 @@ function ExpenseSection() {
               <div key={txn.id} className="px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                    {txn.expense_categories?.name ?? "Khac"}
+                    {txn.expense_categories?.name ?? t("uncategorized")}
                   </span>
                   <span className="text-sm font-semibold text-red-600">
                     {formatPrice(txn.amount)}
@@ -535,6 +539,7 @@ function AddExpenseModal({
   onSuccess: () => void;
 }) {
   const supabase = createClient();
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     expense_category_id: categories[0]?.id ?? "",
@@ -553,14 +558,14 @@ function AddExpenseModal({
       type: "expense" as const,
       expense_category_id: form.expense_category_id,
       amount: Number(form.amount),
-      description: form.description.trim() || "Chi phi",
+      description: form.description.trim() || t("defaultExpenseDesc"),
       transaction_date: form.transaction_date,
     });
 
     if (!error) {
       onSuccess();
     } else {
-      alert("Loi: " + error.message);
+      alert(t("errorPrefix") + error.message);
       setSaving(false);
     }
   }
@@ -569,13 +574,13 @@ function AddExpenseModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <h3 className="mb-4 text-lg font-semibold text-gray-900">
-          Them chi phi
+          {t("addExpenseTitle")}
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Loai chi phi *
+              {t("expenseCategoryLabel")}
             </label>
             <select
               value={form.expense_category_id}
@@ -585,7 +590,7 @@ function AddExpenseModal({
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             >
-              <option value="">-- Chon loai --</option>
+              <option value="">{t("expenseCategoryPlaceholder")}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -596,7 +601,7 @@ function AddExpenseModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              So tien (d) *
+              {t("expenseAmountLabel")}
             </label>
             <input
               type="number"
@@ -605,13 +610,13 @@ function AddExpenseModal({
               required
               min="1"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              placeholder="VD: 500000"
+              placeholder={t("expenseAmountPlaceholder")}
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Ngay chi
+              {t("expenseDateLabel")}
             </label>
             <input
               type="date"
@@ -625,7 +630,7 @@ function AddExpenseModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Mo ta
+              {t("expenseDescLabel")}
             </label>
             <input
               type="text"
@@ -634,7 +639,7 @@ function AddExpenseModal({
                 setForm({ ...form, description: e.target.value })
               }
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              placeholder="VD: Mua thuc pham sang nay"
+              placeholder={t("expenseDescPlaceholder")}
             />
           </div>
 
@@ -644,14 +649,14 @@ function AddExpenseModal({
               onClick={onClose}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              Huy
+              {t("cancel")}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
             >
-              {saving ? "Dang luu..." : "Luu chi phi"}
+              {saving ? t("saving") : t("saveExpense")}
             </button>
           </div>
         </form>

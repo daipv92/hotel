@@ -33,13 +33,13 @@ export default async function DashboardLayout({
       <div className="flex min-h-screen items-center justify-center">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
           <p className="text-sm text-red-600">
-            Khong tim thay thong tin khach san. Vui long lien he quan tri vien.
+            Hotel information not found. Please contact the administrator.
           </p>
           <a
             href="/"
             className="mt-3 inline-block text-sm text-blue-600 hover:underline"
           >
-            Quay lai trang chu
+            Back to home
           </a>
         </div>
       </div>

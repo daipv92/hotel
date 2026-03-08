@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const tabs = [
-  { href: "/settings/categories", label: "Loại phòng" },
-  { href: "/settings/rooms", label: "Phòng" },
-  { href: "/settings/pricing", label: "Bảng giá" },
-  { href: "/settings/services", label: "Dịch vụ" },
-];
+import { useI18n } from "@/lib/i18n";
 
 export function SettingsNav() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const tabs = [
+    { href: "/settings/categories", label: t("settingsCategories") },
+    { href: "/settings/rooms", label: t("settingsRooms") },
+    { href: "/settings/pricing", label: t("settingsPricing") },
+    { href: "/settings/services", label: t("settingsServices") },
+  ];
 
   return (
     <nav className="border-b border-gray-200">

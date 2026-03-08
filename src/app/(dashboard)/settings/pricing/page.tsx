@@ -3,17 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHotel } from "@/components/hotel-provider";
+import { useI18n } from "@/lib/i18n";
 import type { PricingRule, RoomCategory } from "@/types/database";
-
-const PRICING_TYPES = [
-  { value: "hourly", label: "Theo giờ" },
-  { value: "overnight", label: "Qua đêm" },
-  { value: "daily", label: "Theo ngày" },
-] as const;
-
-function pricingTypeLabel(type: string) {
-  return PRICING_TYPES.find((r) => r.value === type)?.label ?? type;
-}
 
 function formatPrice(price: number) {
   return price.toLocaleString("vi-VN") + " đ";
@@ -22,6 +13,17 @@ function formatPrice(price: number) {
 export default function PricingPage() {
   const { hotelId } = useHotel();
   const supabase = createClient();
+  const { t } = useI18n();
+
+  const PRICING_TYPES = [
+    { value: "hourly", label: t("pricingTypeHourly") },
+    { value: "overnight", label: t("pricingTypeOvernight") },
+    { value: "daily", label: t("pricingTypeDaily") },
+  ] as const;
+
+  function pricingTypeLabel(type: string) {
+    return PRICING_TYPES.find((r) => r.value === type)?.label ?? type;
+  }
 
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [categories, setCategories] = useState<RoomCategory[]>([]);
@@ -131,13 +133,13 @@ export default function PricingPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Bạn có chắc muốn xóa quy tắc giá này?")) return;
+    if (!confirm(t("deletePricingConfirm"))) return;
     await supabase.from("pricing_rules").delete().eq("id", id);
     fetchAll();
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Đang tải...</p>;
+    return <p className="text-sm text-gray-500">{t("loading")}</p>;
   }
 
   // Group rules by category
@@ -152,20 +154,19 @@ export default function PricingPage() {
     <>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900">
-          Bảng giá phòng
+          {t("pricingTitle")}
         </h2>
         <button
           onClick={openAdd}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
         >
-          Thêm quy tắc giá
+          {t("addPricingRule")}
         </button>
       </div>
 
       {rules.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-          Chưa có quy tắc giá nào. Hãy thêm loại phòng trước, sau đó thiết lập
-          bảng giá.
+          {t("noPricingRulesYet")}
         </div>
       ) : (
         <div className="space-y-4">
@@ -178,7 +179,7 @@ export default function PricingPage() {
                 <h3 className="text-sm font-semibold text-gray-900">
                   {category.name}
                   <span className="ml-2 text-xs font-normal text-gray-500">
-                    (Giá cơ bản: {formatPrice(category.base_price)})
+                    ({t("basePriceInfo")} {formatPrice(category.base_price)})
                   </span>
                 </h3>
               </div>
@@ -186,16 +187,16 @@ export default function PricingPage() {
                 <thead className="bg-gray-50/50">
                   <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Loại giá
+                      {t("thPricingType")}
                     </th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Giá
+                      {t("thPrice")}
                     </th>
                     <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Chi tiết
+                      {t("thDetail")}
                     </th>
                     <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Thao tác
+                      {t("actions")}
                     </th>
                   </tr>
                 </thead>
@@ -213,22 +214,22 @@ export default function PricingPage() {
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {rule.pricing_type === "hourly" && (
                           <span>
-                            {rule.min_hours}–{rule.max_hours} giờ
+                            {rule.min_hours}–{rule.max_hours} {t("hourLabel")}
                             {rule.extra_hour_price != null &&
-                              `, phụ thu ${formatPrice(rule.extra_hour_price)}/giờ`}
+                              `, ${t("surchargeLabel")} ${formatPrice(rule.extra_hour_price)}${t("perHour")}`}
                           </span>
                         )}
                         {rule.pricing_type === "overnight" &&
                           rule.overnight_checkin_from && (
                             <span>
-                              Nhận {rule.overnight_checkin_from} – Trả{" "}
+                              {t("checkinFrom")} {rule.overnight_checkin_from} – {t("checkoutBefore")}{" "}
                               {rule.overnight_checkout_before}
                             </span>
                           )}
                         {rule.pricing_type === "daily" &&
                           rule.overnight_checkin_from && (
                             <span>
-                              Nhận {rule.overnight_checkin_from} – Trả{" "}
+                              {t("checkinFrom")} {rule.overnight_checkin_from} – {t("checkoutBefore")}{" "}
                               {rule.overnight_checkout_before}
                             </span>
                           )}
@@ -243,13 +244,13 @@ export default function PricingPage() {
                           onClick={() => openEdit(rule)}
                           className="mr-2 text-sm text-blue-600 hover:text-blue-800"
                         >
-                          Sửa
+                          {t("edit")}
                         </button>
                         <button
                           onClick={() => handleDelete(rule.id)}
                           className="text-sm text-red-600 hover:text-red-800"
                         >
-                          Xóa
+                          {t("delete")}
                         </button>
                       </td>
                     </tr>
@@ -265,13 +266,13 @@ export default function PricingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">
-              {editingId ? "Sửa quy tắc giá" : "Thêm quy tắc giá"}
+              {editingId ? t("editPricingRule") : t("addPricingRule")}
             </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Loại phòng
+                    {t("roomTypeLabel")}
                   </label>
                   <select
                     value={form.room_category_id}
@@ -281,7 +282,7 @@ export default function PricingPage() {
                     required
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                   >
-                    <option value="">-- Chọn --</option>
+                    <option value="">{t("selectPlaceholder")}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -291,7 +292,7 @@ export default function PricingPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    Loại giá
+                    {t("thPricingType")}
                   </label>
                   <select
                     value={form.pricing_type}
@@ -312,7 +313,7 @@ export default function PricingPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Giá (VND)
+                  {t("priceVNDLabel")}
                 </label>
                 <input
                   type="number"
@@ -321,7 +322,7 @@ export default function PricingPage() {
                   required
                   min="0"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="150000"
+                  placeholder={t("pricePlaceholder")}
                 />
               </div>
 
@@ -329,7 +330,7 @@ export default function PricingPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Giờ tối thiểu
+                      {t("minHoursLabel")}
                     </label>
                     <input
                       type="number"
@@ -345,7 +346,7 @@ export default function PricingPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Giờ tối đa
+                      {t("maxHoursLabel")}
                     </label>
                     <input
                       type="number"
@@ -361,7 +362,7 @@ export default function PricingPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Phụ thu/giờ
+                      {t("extraHourLabel")}
                     </label>
                     <input
                       type="number"
@@ -371,7 +372,7 @@ export default function PricingPage() {
                       }
                       min="0"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                      placeholder="30000"
+                      placeholder={t("extraHourPlaceholder")}
                     />
                   </div>
                 </div>
@@ -382,7 +383,7 @@ export default function PricingPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Nhận phòng từ
+                      {t("checkinFromLabel")}
                     </label>
                     <input
                       type="time"
@@ -398,7 +399,7 @@ export default function PricingPage() {
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-gray-700">
-                      Trả phòng trước
+                      {t("checkoutBeforeLabel")}
                     </label>
                     <input
                       type="time"
@@ -417,7 +418,7 @@ export default function PricingPage() {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Mô tả (tùy chọn)
+                  {t("descriptionOptional")}
                 </label>
                 <input
                   type="text"
@@ -426,7 +427,7 @@ export default function PricingPage() {
                     setForm({ ...form, description: e.target.value })
                   }
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  placeholder="VD: Giá áp dụng từ 22h - 6h"
+                  placeholder={t("descriptionPlaceholder")}
                 />
               </div>
 
@@ -436,14 +437,14 @@ export default function PricingPage() {
                   onClick={() => setShowModal(false)}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
-                  Hủy
+                  {t("cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? "Đang lưu..." : "Lưu"}
+                  {saving ? t("saving") : t("save")}
                 </button>
               </div>
             </form>
