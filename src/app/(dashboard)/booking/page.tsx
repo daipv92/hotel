@@ -36,6 +36,13 @@ function timeSince(date: string) {
   return `${minutes}p`;
 }
 
+function isWithinHours(date: string, hours: number) {
+  const target = new Date(date).getTime();
+  const now = Date.now();
+  const diff = target - now;
+  return diff >= 0 && diff <= hours * 60 * 60 * 1000;
+}
+
 // ─── Icons ───
 function BedIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
@@ -120,6 +127,7 @@ export default function BookingPage() {
   const [serviceModal, setServiceModal] = useState<string | null>(null);
   const [changeRoomModal, setChangeRoomModal] = useState<string | null>(null);
   const [actionMenu, setActionMenu] = useState<{ room: RoomOccupancy; x: number; y: number } | null>(null);
+  const [reserveWarning, setReserveWarning] = useState<{ room: RoomOccupancy; action: "quick" | "checkin" } | null>(null);
 
   const fetchRooms = useCallback(async () => {
     const { data } = await supabase
@@ -301,9 +309,42 @@ export default function BookingPage() {
 
                             {/* Right panel - info */}
                             <div className="flex flex-1 flex-col justify-center gap-0.5 px-3 py-2.5 text-left min-w-0">
-                              {room.status === "available" && (
+                              {/* Reservation banner on top */}
+                              {room.future_booking_id && (
+                                <div className={`flex items-center gap-1.5 rounded-md px-2 py-1 -mx-1 mb-0.5 ${
+                                  room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                    ? "bg-red-50 border border-red-200"
+                                    : "bg-violet-50 border border-violet-200"
+                                }`}>
+                                  <svg className={`h-3 w-3 flex-shrink-0 ${
+                                    room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                      ? "text-red-500"
+                                      : "text-violet-500"
+                                  }`} viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
+                                  </svg>
+                                  <p className={`text-[11px] font-semibold truncate ${
+                                    room.future_check_in && isWithinHours(room.future_check_in, 2)
+                                      ? "text-red-700"
+                                      : "text-violet-700"
+                                  }`}>
+                                    {room.future_guest}
+                                    {room.future_check_in && (
+                                      <span className="font-normal"> - {formatDateTime(room.future_check_in)}</span>
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+
+                              {room.status === "available" && !room.future_booking_id && (
                                 <span className={`text-sm font-bold ${cfg.text}`}>
                                   Phong trong
+                                </span>
+                              )}
+
+                              {room.status === "available" && room.future_booking_id && !room.current_guest && (
+                                <span className="text-xs text-gray-400">
+                                  Phong trong - co dat truoc
                                 </span>
                               )}
 
@@ -326,13 +367,6 @@ export default function BookingPage() {
                                 <span className="text-sm font-medium text-amber-600">
                                   Can don dep
                                 </span>
-                              )}
-
-                              {/* Future booking indicator */}
-                              {room.future_booking_id && (
-                                <p className="text-[11px] text-violet-600 truncate">
-                                  Dat truoc: {room.future_guest}
-                                </p>
                               )}
                             </div>
                           </button>
@@ -418,11 +452,20 @@ export default function BookingPage() {
           onQuickCheckin={() => {
             const room = actionMenu.room;
             setActionMenu(null);
-            handleQuickCheckin(room);
+            if (room.future_booking_id && room.future_check_in && isWithinHours(room.future_check_in, 2)) {
+              setReserveWarning({ room, action: "quick" });
+            } else {
+              handleQuickCheckin(room);
+            }
           }}
           onCheckin={() => {
+            const room = actionMenu.room;
             setActionMenu(null);
-            setCheckinModal({ room: actionMenu.room, mode: "checkin" });
+            if (room.future_booking_id && room.future_check_in && isWithinHours(room.future_check_in, 2)) {
+              setReserveWarning({ room, action: "checkin" });
+            } else {
+              setCheckinModal({ room, mode: "checkin" });
+            }
           }}
           onSchedule={() => {
             setActionMenu(null);
@@ -451,6 +494,55 @@ export default function BookingPage() {
             handleMarkClean(actionMenu.room.room_id);
           }}
         />
+      )}
+
+      {/* Reserve Warning Dialog */}
+      {reserveWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-center text-base font-bold text-gray-900 mb-2">
+                Phong co dat truoc sap toi!
+              </h3>
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 mb-4">
+                <p className="text-sm text-red-700">
+                  <strong>{reserveWarning.room.future_guest}</strong> da dat phong {reserveWarning.room.room_number} vao{" "}
+                  <strong>{reserveWarning.room.future_check_in ? formatDateTime(reserveWarning.room.future_check_in) : ""}</strong>
+                </p>
+              </div>
+              <p className="text-sm text-gray-500 text-center mb-5">
+                Ban co chac muon tiep tuc nhan phong nay?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setReserveWarning(null)}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Huy
+                </button>
+                <button
+                  onClick={() => {
+                    const { room, action } = reserveWarning;
+                    setReserveWarning(null);
+                    if (action === "quick") {
+                      handleQuickCheckin(room);
+                    } else {
+                      setCheckinModal({ room, mode: "checkin" });
+                    }
+                  }}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-red-200 transition-all hover:shadow-xl"
+                >
+                  Tiep tuc
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
@@ -752,13 +844,25 @@ function CheckinModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.guest_name.trim()) return;
+    if (isReserve && !form.expected_check_in) {
+      alert("Vui long chon ngay nhan phong du kien.");
+      return;
+    }
+    if (isReserve && form.expected_check_in && new Date(form.expected_check_in) <= new Date()) {
+      alert("Ngay nhan phong du kien phai trong tuong lai.");
+      return;
+    }
     setSaving(true);
 
     const selectedRule = pricingRules.find(
       (r) => r.pricing_type === form.pricing_type,
     );
 
-    const bookingData: Record<string, unknown> = {
+    const checkInAt = isReserve && form.expected_check_in
+      ? new Date(form.expected_check_in).toISOString()
+      : new Date().toISOString();
+
+    const { error } = await supabase.from("bookings").insert({
       hotel_id: hotelId,
       room_id: room.room_id,
       guest_name: form.guest_name.trim(),
@@ -767,19 +871,9 @@ function CheckinModal({
       pricing_type: form.pricing_type || null,
       notes: form.notes.trim() || null,
       room_charge: selectedRule?.price ?? 0,
-    };
-
-    if (isReserve) {
-      bookingData.status = "reserved";
-      bookingData.check_in_at = form.expected_check_in
-        ? new Date(form.expected_check_in).toISOString()
-        : new Date().toISOString();
-    } else {
-      bookingData.status = "checked_in";
-      bookingData.check_in_at = new Date().toISOString();
-    }
-
-    const { error } = await supabase.from("bookings").insert(bookingData);
+      status: isReserve ? "reserved" : "checked_in",
+      check_in_at: checkInAt,
+    });
 
     if (!error) {
       if (!isReserve) {
@@ -790,6 +884,7 @@ function CheckinModal({
       }
       onSuccess();
     } else {
+      console.error("Booking insert error:", error);
       alert("Loi: " + error.message);
       setSaving(false);
     }
